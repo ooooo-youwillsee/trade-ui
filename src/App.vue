@@ -2,7 +2,6 @@
 import { computed } from 'vue';
 import { RouterView, useRoute } from 'vue-router';
 import BottomNav from './components/BottomNav.vue';
-import ToastModal from './components/ToastModal.vue';
 import { useNotice } from './composables/useNotice';
 
 const route = useRoute();
@@ -14,6 +13,8 @@ const activeTab = computed(() => route.meta.tab || 'contract');
   <main class="app-shell webapp-shell">
     <RouterView />
     <BottomNav :active-tab="activeTab" />
-    <ToastModal :message="notice.message" :open="notice.open" :title="notice.title" @close="closeNotice" />
+    <van-dialog v-model:show="notice.open" :title="notice.title" confirm-button-text="确定" @confirm="closeNotice">
+      <p class="notice-dialog-message">{{ notice.message }}</p>
+    </van-dialog>
   </main>
 </template>

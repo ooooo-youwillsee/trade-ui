@@ -1,6 +1,5 @@
 <script setup>
 import { computed } from 'vue';
-import { TrendingDown, TrendingUp } from '@lucide/vue';
 import { CONTRACT_SIDE_LONG } from '../contractGrid';
 import { getHealth } from '../composables/useContractGridStrategies';
 import { formatNumber, formatPercent } from '../utils/formatters';
@@ -26,46 +25,57 @@ const gridPreview = computed(() => {
   ];
 });
 const health = computed(() => getHealth(props.result, props.activeInput));
-const sideIcon = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? TrendingUp : TrendingDown));
+const healthType = computed(() => {
+  if (health.value.tone === 'danger') return 'danger';
+  if (health.value.tone === 'warning') return 'warning';
+  return 'success';
+});
+const sideLabel = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? '做多' : '做空'));
 </script>
 
 <template>
-  <div class="panel results-panel">
-    <div class="summary-strip" :class="health.tone">
-      <component :is="sideIcon" :size="22" />
-      <div>
-        <span>{{ result?.name || '合约网格' }}</span>
-        <strong>{{ health.label }}</strong>
-      </div>
-      <b>{{ formatPercent(health.distance, 2) }}</b>
-    </div>
+  <div class="results-panel">
+    <van-cell-group inset>
+      <van-cell :title="result?.name || '合约网格'" :label="sideLabel">
+        <template #value>
+          <van-tag :type="healthType">{{ health.label }}</van-tag>
+        </template>
+      </van-cell>
+      <van-cell title="强平缓冲" :value="formatPercent(health.distance, 2)" />
+    </van-cell-group>
 
-    <div class="metric-grid">
-      <div class="metric primary">
-        <span>预估网格强平价</span>
-        <strong>{{ formatNumber(result?.estimatedGridLiquidationPrice ?? 0, 4) }}</strong>
-      </div>
-      <div class="metric">
-        <span>当前强平价</span>
-        <strong>{{ formatNumber(result?.liquidationPrice ?? 0, 4) }}</strong>
-      </div>
-      <div class="metric">
-        <span>计划名义仓位</span>
-        <strong>{{ formatNumber(result?.notional ?? 0, 2) }}</strong>
-      </div>
-      <div class="metric">
-        <span>总保证金</span>
-        <strong>{{ formatNumber(result?.margin ?? 0, 2) }}</strong>
-      </div>
-      <div class="metric">
-        <span>单格收益率</span>
-        <strong>{{ formatPercent(result?.gridProfitRate ?? 0, 4) }}</strong>
-      </div>
-      <div class="metric">
-        <span>区间收益率</span>
-        <strong>{{ formatPercent(result?.totalYieldRate ?? 0, 4) }}</strong>
-      </div>
-    </div>
+    <van-grid :column-num="2" clickable gutter="8">
+      <van-grid-item text="预估网格强平价">
+        <template #icon>
+          <strong class="grid-metric primary">{{ formatNumber(result?.estimatedGridLiquidationPrice ?? 0, 4) }}</strong>
+        </template>
+      </van-grid-item>
+      <van-grid-item text="当前强平价">
+        <template #icon>
+          <strong class="grid-metric">{{ formatNumber(result?.liquidationPrice ?? 0, 4) }}</strong>
+        </template>
+      </van-grid-item>
+      <van-grid-item text="计划名义仓位">
+        <template #icon>
+          <strong class="grid-metric">{{ formatNumber(result?.notional ?? 0, 2) }}</strong>
+        </template>
+      </van-grid-item>
+      <van-grid-item text="总保证金">
+        <template #icon>
+          <strong class="grid-metric">{{ formatNumber(result?.margin ?? 0, 2) }}</strong>
+        </template>
+      </van-grid-item>
+      <van-grid-item text="单格收益率">
+        <template #icon>
+          <strong class="grid-metric">{{ formatPercent(result?.gridProfitRate ?? 0, 4) }}</strong>
+        </template>
+      </van-grid-item>
+      <van-grid-item text="区间收益率">
+        <template #icon>
+          <strong class="grid-metric">{{ formatPercent(result?.totalYieldRate ?? 0, 4) }}</strong>
+        </template>
+      </van-grid-item>
+    </van-grid>
 
     <van-cell-group inset title="当前仓位">
       <van-cell title="已成交网格数" :value="result?.filledGridCount ?? 0" />
@@ -88,19 +98,17 @@ const sideIcon = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG 
       </van-cell>
     </van-cell-group>
 
-    <div class="section-title">
-      <h2>网格价格</h2>
-      <span>{{ result?.gridPrices.length ?? 0 }} 个价格点</span>
-    </div>
-
-    <div class="grid-list">
-      <span
-        v-for="(price, index) in gridPreview"
-        :key="`${price}-${index}`"
-        :class="{ ellipsis: price === null, filled: result?.filledGridPrices.includes(price) }"
-      >
-        {{ price === null ? '...' : formatNumber(price, 4) }}
-      </span>
-    </div>
+    <van-cell-group inset :title="`网格价格（${result?.gridPrices.length ?? 0} 个价格点）`">
+      <div class="tag-cloud">
+        <van-tag
+          v-for="(price, index) in gridPreview"
+          :key="`${price}-${index}`"
+          :plain="price !== null"
+          :type="result?.filledGridPrices.includes(price) ? 'warning' : 'primary'"
+        >
+          {{ price === null ? '...' : formatNumber(price, 4) }}
+        </van-tag>
+      </div>
+    </van-cell-group>
   </div>
 </template>
