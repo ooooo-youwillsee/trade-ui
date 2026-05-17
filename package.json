@@ -1,0 +1,19 @@
+{
+  "name": "contract-grid-trader-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@lucide/vue": "^1.16.0",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "vant": "^4.9.24",
+    "vite": "^6.4.2",
+    "vue": "^3.5.13",
+    "vue-router": "^4.6.4"
+  }
+}
