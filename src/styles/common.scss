@@ -101,7 +101,7 @@ input {
   min-height: 100dvh;
   overflow: visible;
   scrollbar-width: none;
-  padding-bottom: 92px;
+  padding-bottom: calc(118px + env(safe-area-inset-bottom));
 
   &::-webkit-scrollbar {
     display: none;

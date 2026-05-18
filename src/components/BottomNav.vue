@@ -29,11 +29,18 @@ const tabs = [
 
 <style scoped lang="scss">
 .bottom-nav {
-  max-width: 720px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  left: 12px;
+  width: auto;
+  max-width: 696px;
   margin: 0 auto;
-  border-top: 1px solid var(--trade-border);
+  overflow: hidden;
+  border: 1px solid var(--trade-border);
+  border-radius: 8px;
   background: var(--trade-bottom-bg);
-  box-shadow: 0 -10px 32px rgba(15, 27, 22, 0.12);
+  box-shadow: 0 14px 36px rgba(15, 27, 22, 0.18);
+  backdrop-filter: blur(14px);
 
   :deep(.van-tabbar-item) {
     color: var(--trade-muted);
