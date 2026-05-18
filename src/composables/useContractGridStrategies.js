@@ -3,6 +3,7 @@ import { calculateContractGrid, CONTRACT_SIDE_LONG, normalizeInput } from '../co
 import { defaultInput, presets } from '../strategyDefaults';
 
 const STORAGE_KEY = 'contract-grid-strategies';
+const STORAGE_VERSION = 1;
 let strategyStore;
 
 export function useContractGridStrategies() {
@@ -15,9 +16,9 @@ export function useContractGridStrategies() {
   watch(
     strategies,
     (items) => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      persistStrategies(items);
     },
-    { deep: true },
+    { deep: true, flush: 'sync' },
   );
 
   const selectedStrategy = computed(() => strategies.value.find((strategy) => strategy.id === selectedId.value));
@@ -76,6 +77,7 @@ export function useContractGridStrategies() {
     });
     strategies.value = [strategy, ...strategies.value];
     selectedId.value = strategy.id;
+    persistStrategies(strategies.value);
     return strategy;
   }
 
@@ -94,6 +96,7 @@ export function useContractGridStrategies() {
       strategies.value.unshift(saved);
     }
     selectedId.value = saved.id;
+    persistStrategies(strategies.value);
     return { ok: true, strategy: saved, message: '策略已保存' };
   }
 
@@ -103,6 +106,7 @@ export function useContractGridStrategies() {
       Object.assign(form, defaultInput);
       strategies.value = [];
       selectedId.value = '';
+      persistStrategies(strategies.value);
       return { ok: true, strategy: deleted, message: '策略已删除' };
     }
 
@@ -111,6 +115,7 @@ export function useContractGridStrategies() {
     if (selectedId.value === id) {
       selectedId.value = strategies.value[Math.max(deleteIndex - 1, 0)]?.id || strategies.value[0]?.id || '';
     }
+    persistStrategies(strategies.value);
     return { ok: true, strategy: deleted, message: '策略已删除' };
   }
 
@@ -147,6 +152,7 @@ export function useContractGridStrategies() {
     }));
     strategies.value = normalized;
     selectedId.value = normalized[0].id;
+    persistStrategies(strategies.value);
     return { ok: true, count: normalized.length, message: `已导入 ${normalized.length} 个策略` };
   }
 
@@ -221,13 +227,29 @@ function createStrategy(input = defaultInput) {
 function loadStrategies() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    if (Array.isArray(saved) && saved.length > 0) {
-      return saved.map((strategy) => ({ ...defaultInput, ...strategy }));
+    const savedStrategies = Array.isArray(saved) ? saved : saved?.strategies;
+    if (Array.isArray(savedStrategies) && savedStrategies.length > 0) {
+      return savedStrategies.map((strategy) => ({ ...defaultInput, ...strategy }));
     }
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
   return [];
+}
+
+function persistStrategies(strategies) {
+  try {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: STORAGE_VERSION,
+        updatedAt: new Date().toISOString(),
+        strategies,
+      }),
+    );
+  } catch {
+    // Keep the in-memory workflow available if browser storage is unavailable.
+  }
 }
 
 function stripMeta(strategy) {
