@@ -26,3 +26,22 @@ const tabs = [
     </van-tabbar-item>
   </van-tabbar>
 </template>
+
+<style scoped lang="scss">
+.bottom-nav {
+  max-width: 720px;
+  margin: 0 auto;
+  border-top: 1px solid var(--trade-border);
+  background: var(--trade-bottom-bg);
+  box-shadow: 0 -10px 32px rgba(15, 27, 22, 0.12);
+
+  :deep(.van-tabbar-item) {
+    color: var(--trade-muted);
+  }
+
+  :deep(.van-tabbar-item--active) {
+    color: var(--trade-up);
+    background: transparent;
+  }
+}
+</style>

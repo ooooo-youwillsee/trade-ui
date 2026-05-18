@@ -30,8 +30,15 @@ defineEmits(['add-strategy', 'delete-strategy', 'edit-strategy', 'view-strategy'
       </van-empty>
 
       <van-swipe-cell v-for="item in strategySummaries" :key="item.strategy.id">
-        <van-cell-group inset>
-          <van-cell clickable :label="item.strategy.name || '未命名策略'" @click="$emit('view-strategy', item.strategy.id)">
+        <van-cell-group
+          class="strategy-card"
+          inset
+          role="button"
+          tabindex="0"
+          @click="$emit('view-strategy', item.strategy.id)"
+          @keydown.enter="$emit('view-strategy', item.strategy.id)"
+        >
+          <van-cell clickable :label="item.strategy.name || '未命名策略'">
             <template #title>
               <span class="strategy-title">
                 <TrendingUp v-if="item.strategy.side === CONTRACT_SIDE_LONG" :size="18" />
@@ -82,10 +89,10 @@ defineEmits(['add-strategy', 'delete-strategy', 'edit-strategy', 'view-strategy'
           <van-cell>
             <template #value>
               <van-space>
-                <van-button plain size="small" type="primary" @click="$emit('edit-strategy', item.strategy.id)">
+                <van-button plain size="small" type="primary" @click.stop="$emit('edit-strategy', item.strategy.id)">
                   <Edit3 :size="15" /> 编辑
                 </van-button>
-                <van-button plain size="small" type="danger" @click="$emit('delete-strategy', item.strategy.id)">
+                <van-button plain size="small" type="danger" @click.stop="$emit('delete-strategy', item.strategy.id)">
                   <Trash2 :size="15" /> 删除
                 </van-button>
               </van-space>
@@ -94,10 +101,132 @@ defineEmits(['add-strategy', 'delete-strategy', 'edit-strategy', 'view-strategy'
         </van-cell-group>
 
         <template #right>
-          <van-button square type="primary" text="编辑" @click="$emit('edit-strategy', item.strategy.id)" />
-          <van-button square type="danger" text="删除" @click="$emit('delete-strategy', item.strategy.id)" />
+          <div class="swipe-actions">
+            <van-button square type="primary" text="编辑" @click.stop="$emit('edit-strategy', item.strategy.id)" />
+            <van-button square type="danger" text="删除" @click.stop="$emit('delete-strategy', item.strategy.id)" />
+          </div>
         </template>
       </van-swipe-cell>
     </div>
   </section>
 </template>
+
+<style scoped lang="scss">
+.app-nav-bar {
+  --van-nav-bar-background: var(--trade-nav-bg);
+
+  &::after {
+    border-bottom: 0;
+  }
+
+  :deep(.van-nav-bar__content) {
+    box-shadow: var(--trade-nav-shadow);
+    backdrop-filter: blur(12px);
+  }
+
+  :deep(.van-nav-bar__title) {
+    color: var(--trade-text);
+    font-size: 1.08rem;
+    font-weight: 900;
+  }
+}
+
+.nav-add-button {
+  min-width: 72px;
+  box-shadow: 0 7px 18px rgba(22, 199, 132, 0.24);
+
+  :deep(.van-button__content) {
+    justify-content: center;
+    gap: 3px;
+    width: 100%;
+  }
+}
+
+.scroll-list {
+  min-height: 0;
+  padding: 0 0 92px;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.strategy-card {
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid rgba(22, 199, 132, 0.5);
+    outline-offset: 2px;
+  }
+}
+
+.swipe-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 72px);
+  height: 100%;
+
+  :deep(.van-button) {
+    width: 72px;
+    height: 100%;
+    min-height: 100%;
+    border-radius: 0;
+  }
+
+  :deep(.van-button__content) {
+    min-height: 100%;
+  }
+}
+
+.strategy-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  color: var(--trade-text);
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
+.list-metric {
+  display: block;
+  color: var(--trade-text);
+  font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.yield-metric {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  color: var(--trade-up);
+  font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+
+  strong {
+    font-size: 0.98rem;
+  }
+
+  small {
+    border-radius: 999px;
+    padding: 2px 7px;
+    color: var(--trade-up);
+    background: rgba(22, 199, 132, 0.13);
+    font-size: 0.72rem;
+    font-weight: 900;
+  }
+
+  &.negative,
+  &.negative small {
+    color: var(--trade-down);
+  }
+
+  &.negative small {
+    background: rgba(234, 57, 67, 0.14);
+  }
+}
+</style>

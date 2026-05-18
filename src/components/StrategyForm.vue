@@ -126,3 +126,71 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
     </div>
   </div>
 </template>
+
+<style scoped lang="scss">
+.save-page {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.save-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(22, 199, 132, 0.22);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--trade-save-bg);
+  box-shadow: var(--trade-card-shadow);
+
+  h2 {
+    margin: 4px 0 0;
+    color: var(--trade-text);
+    font-size: 1.35rem;
+    overflow-wrap: anywhere;
+  }
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--trade-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.save-pill {
+  display: inline-flex;
+  margin-top: 10px;
+  border-radius: 999px;
+  padding: 5px 10px;
+  color: var(--trade-up);
+  background: rgba(22, 199, 132, 0.14);
+  font-size: 0.78rem;
+  font-weight: 900;
+
+  &.dirty {
+    color: var(--trade-warn);
+    background: rgba(240, 185, 11, 0.14);
+  }
+}
+
+.preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 14px;
+}
+
+.save-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 4px 4px 16px;
+
+  :deep(.van-button:first-child) {
+    grid-column: 1 / -1;
+  }
+}
+</style>

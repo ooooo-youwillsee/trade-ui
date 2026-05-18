@@ -1,5 +1,5 @@
 <script setup>
-import { Download } from '@lucide/vue';
+import { Database, Download, Moon, Upload } from '@lucide/vue';
 import { useTheme } from '../composables/useTheme';
 
 defineProps({
@@ -21,28 +21,149 @@ function handleImport(fileItem) {
 </script>
 
 <template>
-  <section class="mobile-page">
+  <section class="mobile-page mine-page">
     <van-nav-bar title="我的" fixed placeholder />
 
-    <van-cell-group inset title="偏好设置">
+    <section class="mine-summary">
+      <div class="summary-icon">
+        <Database :size="22" />
+      </div>
+      <div>
+        <p class="summary-label">本地策略</p>
+        <strong>{{ strategyCount }}</strong>
+      </div>
+    </section>
+
+    <van-cell-group class="mine-group" inset title="偏好设置">
       <van-cell center title="暗黑主题" label="默认使用白色主题">
+        <template #icon>
+          <Moon class="cell-icon" :size="18" />
+        </template>
         <template #right-icon>
           <van-switch v-model="isDark" size="22px" />
         </template>
       </van-cell>
     </van-cell-group>
 
-    <van-cell-group inset title="数据管理">
-      <van-cell title="本地策略" :value="String(strategyCount)" />
+    <van-cell-group class="mine-group" inset title="数据管理">
+      <div class="data-actions">
+        <van-button round block type="primary" @click="$emit('export-json')">
+          <template #icon>
+            <Download :size="18" />
+          </template>
+          数据导出
+        </van-button>
 
-      <van-button round block type="primary" @click="$emit('export-json')">
-        <Download :size="18" />
-        数据导出
-      </van-button>
-
-      <van-uploader accept="application/json,.json" :after-read="handleImport" :max-count="1">
-        <van-button round block plain type="primary" icon="upgrade">数据导入</van-button>
-      </van-uploader>
+        <van-uploader class="import-uploader" accept="application/json,.json" :after-read="handleImport" :max-count="1">
+          <van-button round block plain type="primary">
+            <template #icon>
+              <Upload :size="18" />
+            </template>
+            数据导入
+          </van-button>
+        </van-uploader>
+      </div>
     </van-cell-group>
   </section>
 </template>
+
+<style scoped lang="scss">
+.mine-page {
+  gap: 14px;
+  padding-top: 12px;
+}
+
+.mine-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid rgba(22, 199, 132, 0.22);
+  border-radius: 8px;
+  padding: 18px;
+  background:
+    linear-gradient(135deg, rgba(22, 199, 132, 0.13), rgba(255, 255, 255, 0.9)),
+    var(--trade-surface);
+  box-shadow: var(--trade-card-shadow);
+
+  strong {
+    display: block;
+    color: var(--trade-text);
+    font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
+    font-size: 2rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+}
+
+.summary-icon {
+  display: grid;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--trade-up);
+  background: rgba(22, 199, 132, 0.14);
+}
+
+.summary-label {
+  margin: 0 0 7px;
+  color: var(--trade-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.mine-group {
+  :deep(.van-cell-group__title) {
+    padding-top: 4px;
+    color: var(--trade-muted);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0;
+  }
+
+  :deep(.van-cell) {
+    align-items: center;
+    padding: 14px 16px;
+  }
+
+  :deep(.van-cell__title) {
+    font-weight: 800;
+  }
+
+  :deep(.van-cell__label) {
+    margin-top: 4px;
+    color: var(--trade-muted);
+  }
+}
+
+.cell-icon {
+  margin-right: 10px;
+  color: var(--trade-up);
+}
+
+.data-actions {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px 16px;
+
+  :deep(.van-button__content) {
+    gap: 6px;
+  }
+}
+
+.import-uploader {
+  width: 100%;
+
+  :deep(.van-uploader__wrapper),
+  :deep(.van-uploader__input-wrapper) {
+    width: 100%;
+  }
+}
+
+:global(:root[data-theme='dark']) .mine-summary {
+  background:
+    linear-gradient(135deg, rgba(22, 199, 132, 0.18), rgba(21, 31, 27, 0.94)),
+    var(--trade-surface);
+}
+</style>

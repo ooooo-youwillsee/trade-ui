@@ -71,7 +71,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--trade-page-bg);
 }
 
@@ -81,196 +82,30 @@ input {
 }
 
 .app-shell {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .webapp-shell {
   max-width: 720px;
-  height: 100vh;
+  min-height: 100dvh;
   margin: 0 auto;
-  overflow: hidden;
+  overflow: visible;
   padding: 0 12px;
 }
 
 .mobile-page {
   display: grid;
+  align-content: start;
   gap: 12px;
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  grid-auto-rows: max-content;
+  min-height: 100dvh;
+  overflow: visible;
   scrollbar-width: none;
   padding-bottom: 92px;
-}
 
-.mobile-page::-webkit-scrollbar {
-  display: none;
-}
-
-.eyebrow {
-  margin: 0;
-  color: var(--trade-muted);
-  font-size: 0.78rem;
-  font-weight: 800;
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
-.strategy-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  max-width: 100%;
-  color: var(--trade-text);
-  font-weight: 900;
-  overflow-wrap: anywhere;
-}
-
-.nav-add-button {
-  min-width: 72px;
-  box-shadow: 0 7px 18px rgba(22, 199, 132, 0.24);
-}
-
-.nav-add-button .van-button__content {
-  justify-content: center;
-  gap: 3px;
-  width: 100%;
-}
-
-.list-metric,
-.grid-metric {
-  display: block;
-  color: var(--trade-text);
-  font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
-  font-size: 0.98rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
-}
-
-.yield-metric {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  color: var(--trade-up);
-  font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.15;
-}
-
-.yield-metric strong {
-  font-size: 0.98rem;
-}
-
-.yield-metric small {
-  border-radius: 999px;
-  padding: 2px 7px;
-  color: var(--trade-up);
-  background: rgba(22, 199, 132, 0.13);
-  font-size: 0.72rem;
-  font-weight: 900;
-}
-
-.yield-metric.negative,
-.yield-metric.negative small {
-  color: var(--trade-down);
-}
-
-.yield-metric.negative small {
-  background: rgba(234, 57, 67, 0.14);
-}
-
-.grid-metric.primary {
-  color: var(--trade-up);
-}
-
-.negative {
-  color: var(--trade-down);
-}
-
-.results-panel {
-  display: grid;
-  gap: 12px;
-  overflow-y: auto;
-  padding-top: 12px;
-  padding-bottom: 88px;
-}
-
-.scroll-list {
-  min-height: 0;
-  height: calc(100vh - var(--van-nav-bar-height) - 78px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0 0 92px;
-  scrollbar-width: none;
-}
-
-.scroll-list::-webkit-scrollbar {
-  display: none;
-}
-
-.tag-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 16px 14px;
-}
-
-.save-page {
-  display: grid;
-  gap: 12px;
-  padding-top: 12px;
-}
-
-.save-hero {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba(22, 199, 132, 0.22);
-  border-radius: 8px;
-  padding: 18px;
-  background: var(--trade-save-bg);
-  box-shadow: var(--trade-card-shadow);
-}
-
-.save-hero h2 {
-  margin: 4px 0 0;
-  color: var(--trade-text);
-  font-size: 1.35rem;
-  overflow-wrap: anywhere;
-}
-
-.save-pill {
-  display: inline-flex;
-  margin-top: 10px;
-  border-radius: 999px;
-  padding: 5px 10px;
-  color: var(--trade-up);
-  background: rgba(22, 199, 132, 0.14);
-  font-size: 0.78rem;
-  font-weight: 900;
-}
-
-.save-pill.dirty {
-  color: var(--trade-warn);
-  background: rgba(240, 185, 11, 0.14);
-}
-
-.preset-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 16px 14px;
-}
-
-.save-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  padding: 4px 4px 16px;
-}
-
-.save-actions .van-button:first-child {
-  grid-column: 1 / -1;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .notice-dialog-message {
@@ -281,40 +116,18 @@ input {
   overflow-wrap: anywhere;
 }
 
-.bottom-nav {
-  max-width: 720px;
-  margin: 0 auto;
-  border-top: 1px solid var(--trade-border);
-  background: var(--trade-bottom-bg);
-  box-shadow: 0 -10px 32px rgba(15, 27, 22, 0.12);
-}
-
-.app-nav-bar {
-  --van-nav-bar-background: var(--trade-nav-bg);
-}
-
-.app-nav-bar::after {
-  border-bottom: 0;
-}
-
-.app-nav-bar .van-nav-bar__content {
-  box-shadow: var(--trade-nav-shadow);
-  backdrop-filter: blur(12px);
-}
-
-.app-nav-bar .van-nav-bar__title {
-  color: var(--trade-text);
-  font-size: 1.08rem;
-  font-weight: 900;
-}
-
 .van-cell-group--inset {
   margin-right: 0;
   margin-left: 0;
+  overflow: hidden;
 }
 
 .van-nav-bar {
   --van-nav-bar-background: var(--trade-bottom-bg);
+}
+
+.van-nav-bar .van-button .van-button__icon {
+  color: currentColor;
 }
 
 .van-swipe-cell {
@@ -332,10 +145,6 @@ input {
   box-shadow: var(--trade-card-shadow);
 }
 
-.van-cell-group--inset {
-  overflow: hidden;
-}
-
 .van-grid-item__content {
   padding: 12px 6px;
 }
@@ -348,15 +157,6 @@ input {
 
 .van-tag--plain {
   background: rgba(255, 255, 255, 0.03);
-}
-
-.van-tabbar-item {
-  color: var(--trade-muted);
-}
-
-.van-tabbar-item--active {
-  color: var(--trade-up);
-  background: transparent;
 }
 
 .van-dialog {
