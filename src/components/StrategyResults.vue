@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
-import { BarChart3, Boxes, ShieldCheck, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
-import { CONTRACT_SIDE_LONG } from '../contractGrid';
+import { BarChart3, Boxes, ShieldCheck, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
+import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from '../contractGrid';
 import { getHealth } from '../composables/useContractGridStrategies';
 import { formatNumber, formatPercent } from '../utils/formatters';
 
@@ -69,6 +69,20 @@ const positionRows = computed(() => [
   ['持仓数量', formatNumber(props.result?.positionQuantity ?? 0, 8)],
   ['平均入场价', formatNumber(props.result?.averageEntryPrice ?? 0, 4)],
 ]);
+const inputRows = computed(() => [
+  ['策略名称', props.activeInput?.name || '-'],
+  ['方向', props.activeInput?.side === CONTRACT_SIDE_LONG ? '做多' : '做空'],
+  ['网格模式', props.activeInput?.gridMode === GRID_MODE_GEOMETRIC ? '等比' : '等差'],
+  ['创建时建仓', props.activeInput?.openOnCreate ? '是' : '否'],
+  ['下限价格', formatNumber(props.activeInput?.lowerPrice ?? 0, 4)],
+  ['上限价格', formatNumber(props.activeInput?.upperPrice ?? 0, 4)],
+  ['入场价格', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
+  ['当前价格', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
+  ['网格数量', String(props.activeInput?.gridCount ?? '-')],
+  ['杠杆倍数', `${formatNumber(props.activeInput?.leverage ?? 0, 2)}x`],
+  ['初始保证金', formatNumber(props.activeInput?.investment ?? 0, 2)],
+  ['追加保证金', formatNumber(props.activeInput?.additionalInvestment ?? 0, 2)],
+]);
 </script>
 
 <template>
@@ -88,6 +102,19 @@ const positionRows = computed(() => [
         <ShieldCheck :size="18" />
         <span>强平缓冲</span>
         <strong>{{ formatPercent(health.distance, 2) }}</strong>
+      </div>
+    </section>
+
+    <section class="detail-card">
+      <div class="section-title">
+        <SlidersHorizontal :size="18" />
+        <span>参数信息</span>
+      </div>
+      <div class="input-grid">
+        <div v-for="[label, value] in inputRows" :key="label" class="input-item">
+          <span>{{ label }}</span>
+          <strong>{{ value }}</strong>
+        </div>
       </div>
     </section>
 
@@ -287,6 +314,38 @@ const positionRows = computed(() => [
     &.primary {
       color: var(--trade-up);
     }
+  }
+}
+
+.input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.input-item {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  border: 1px solid var(--trade-border);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--trade-surface-soft);
+
+  span {
+    color: var(--trade-muted);
+    font-size: 0.74rem;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+
+  strong {
+    color: var(--trade-text);
+    font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
+    font-size: 0.94rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
   }
 }
 
