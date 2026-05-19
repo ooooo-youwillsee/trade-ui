@@ -44,10 +44,13 @@ const tabs = [
 
   :deep(.van-tabbar-item) {
     color: var(--trade-muted);
+    font-size: var(--trade-font-xs);
+    font-weight: var(--trade-weight-medium);
   }
 
   :deep(.van-tabbar-item--active) {
     color: var(--trade-up);
+    font-weight: var(--trade-weight-strong);
     background: transparent;
   }
 }

@@ -204,7 +204,8 @@ const inputRows = computed(() => [
   h2 {
     margin: 0;
     color: var(--trade-text);
-    font-size: 1.35rem;
+    font-size: var(--trade-font-display);
+    font-weight: var(--trade-weight-title);
     line-height: 1.2;
     overflow-wrap: anywhere;
   }
@@ -225,7 +226,7 @@ const inputRows = computed(() => [
 .side-badge,
 .health-line {
   color: var(--trade-up);
-  font-weight: 900;
+  font-weight: var(--trade-weight-strong);
 }
 
 .side-badge {
@@ -234,8 +235,8 @@ const inputRows = computed(() => [
   gap: 6px;
   border-radius: 999px;
   padding: 6px 10px;
-  background: rgba(22, 199, 132, 0.13);
-  font-size: 0.8rem;
+  background: var(--trade-up-soft);
+  font-size: var(--trade-font-sm);
 }
 
 .health-line {
@@ -245,13 +246,13 @@ const inputRows = computed(() => [
 
   span {
     color: var(--trade-muted);
-    font-weight: 800;
+    font-weight: var(--trade-weight-medium);
   }
 
   strong {
     margin-left: auto;
     color: var(--trade-text);
-    font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
+    font-family: var(--trade-number-font);
     font-variant-numeric: tabular-nums;
   }
 }
@@ -266,7 +267,8 @@ const inputRows = computed(() => [
 .section-title {
   gap: 8px;
   color: var(--trade-text);
-  font-weight: 900;
+  font-size: var(--trade-font-md);
+  font-weight: var(--trade-weight-title);
 
   svg {
     color: var(--trade-up);
@@ -275,8 +277,8 @@ const inputRows = computed(() => [
   small {
     margin-left: auto;
     color: var(--trade-muted);
-    font-size: 0.76rem;
-    font-weight: 800;
+    font-size: var(--trade-font-xs);
+    font-weight: var(--trade-weight-medium);
   }
 }
 
@@ -298,15 +300,16 @@ const inputRows = computed(() => [
 
   span {
     color: var(--trade-muted);
-    font-size: 0.76rem;
-    font-weight: 800;
+    font-size: var(--trade-font-xs);
+    font-weight: var(--trade-weight-medium);
     line-height: 1.25;
   }
 
   strong {
     color: var(--trade-text);
-    font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
-    font-size: 1.04rem;
+    font-family: var(--trade-number-font);
+    font-size: var(--trade-font-lg);
+    font-weight: var(--trade-weight-strong);
     font-variant-numeric: tabular-nums;
     line-height: 1.1;
     overflow-wrap: anywhere;
@@ -334,15 +337,16 @@ const inputRows = computed(() => [
 
   span {
     color: var(--trade-muted);
-    font-size: 0.74rem;
-    font-weight: 800;
+    font-size: var(--trade-font-xs);
+    font-weight: var(--trade-weight-medium);
     line-height: 1.25;
   }
 
   strong {
     color: var(--trade-text);
-    font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
-    font-size: 0.94rem;
+    font-family: var(--trade-number-font);
+    font-size: var(--trade-font-md);
+    font-weight: var(--trade-weight-strong);
     font-variant-numeric: tabular-nums;
     line-height: 1.15;
     overflow-wrap: anywhere;
@@ -367,12 +371,13 @@ const inputRows = computed(() => [
 
   span {
     color: var(--trade-muted);
-    font-weight: 800;
+    font-weight: var(--trade-weight-medium);
   }
 
   strong {
     color: var(--trade-text);
-    font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
+    font-family: var(--trade-number-font);
+    font-weight: var(--trade-weight-strong);
     font-variant-numeric: tabular-nums;
     text-align: right;
     overflow-wrap: anywhere;

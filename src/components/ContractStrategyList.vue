@@ -126,8 +126,8 @@ defineEmits(['add-strategy', 'delete-strategy', 'edit-strategy', 'view-strategy'
 
   :deep(.van-nav-bar__title) {
     color: var(--trade-text);
-    font-size: 1.08rem;
-    font-weight: 900;
+    font-size: var(--trade-font-lg);
+    font-weight: var(--trade-weight-title);
   }
 }
 
@@ -184,15 +184,16 @@ defineEmits(['add-strategy', 'delete-strategy', 'edit-strategy', 'view-strategy'
   gap: 8px;
   max-width: 100%;
   color: var(--trade-text);
-  font-weight: 900;
+  font-weight: var(--trade-weight-title);
   overflow-wrap: anywhere;
 }
 
 .list-metric {
   display: block;
   color: var(--trade-text);
-  font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
-  font-size: 0.98rem;
+  font-family: var(--trade-number-font);
+  font-size: var(--trade-font-md);
+  font-weight: var(--trade-weight-strong);
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   overflow-wrap: anywhere;
@@ -203,21 +204,22 @@ defineEmits(['add-strategy', 'delete-strategy', 'edit-strategy', 'view-strategy'
   justify-items: center;
   gap: 2px;
   color: var(--trade-up);
-  font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
+  font-family: var(--trade-number-font);
   font-variant-numeric: tabular-nums;
   line-height: 1.15;
 
   strong {
-    font-size: 0.98rem;
+    font-size: var(--trade-font-md);
+    font-weight: var(--trade-weight-strong);
   }
 
   small {
     border-radius: 999px;
     padding: 2px 7px;
     color: var(--trade-up);
-    background: rgba(22, 199, 132, 0.13);
-    font-size: 0.72rem;
-    font-weight: 900;
+    background: var(--trade-up-soft);
+    font-size: var(--trade-font-xs);
+    font-weight: var(--trade-weight-strong);
   }
 
   &.negative,
@@ -226,7 +228,7 @@ defineEmits(['add-strategy', 'delete-strategy', 'edit-strategy', 'view-strategy'
   }
 
   &.negative small {
-    background: rgba(234, 57, 67, 0.14);
+    background: var(--trade-down-soft);
   }
 }
 </style>

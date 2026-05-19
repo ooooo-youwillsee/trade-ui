@@ -146,16 +146,18 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
   h2 {
     margin: 4px 0 0;
     color: var(--trade-text);
-    font-size: 1.35rem;
+    font-size: var(--trade-font-display);
+    font-weight: var(--trade-weight-title);
+    line-height: var(--trade-line-tight);
     overflow-wrap: anywhere;
   }
 }
 
 .eyebrow {
   margin: 0;
-  color: var(--trade-muted);
-  font-size: 0.78rem;
-  font-weight: 800;
+  color: var(--trade-subtle);
+  font-size: var(--trade-font-xs);
+  font-weight: var(--trade-weight-strong);
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -166,13 +168,13 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
   border-radius: 999px;
   padding: 5px 10px;
   color: var(--trade-up);
-  background: rgba(22, 199, 132, 0.14);
-  font-size: 0.78rem;
-  font-weight: 900;
+  background: var(--trade-up-soft);
+  font-size: var(--trade-font-xs);
+  font-weight: var(--trade-weight-strong);
 
   &.dirty {
     color: var(--trade-warn);
-    background: rgba(240, 185, 11, 0.14);
+    background: var(--trade-warn-soft);
   }
 }
 

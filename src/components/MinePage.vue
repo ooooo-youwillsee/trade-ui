@@ -88,8 +88,9 @@ function handleImport(fileItem) {
   strong {
     display: block;
     color: var(--trade-text);
-    font-family: "DIN Alternate", "Roboto Mono", Consolas, monospace;
+    font-family: var(--trade-number-font);
     font-size: 2rem;
+    font-weight: var(--trade-weight-title);
     font-variant-numeric: tabular-nums;
     line-height: 1;
   }
@@ -103,22 +104,22 @@ function handleImport(fileItem) {
   place-items: center;
   border-radius: 8px;
   color: var(--trade-up);
-  background: rgba(22, 199, 132, 0.14);
+  background: var(--trade-up-soft);
 }
 
 .summary-label {
   margin: 0 0 7px;
   color: var(--trade-muted);
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: var(--trade-font-sm);
+  font-weight: var(--trade-weight-medium);
 }
 
 .mine-group {
   :deep(.van-cell-group__title) {
     padding-top: 4px;
-    color: var(--trade-muted);
-    font-size: 0.78rem;
-    font-weight: 900;
+    color: var(--trade-subtle);
+    font-size: var(--trade-font-xs);
+    font-weight: var(--trade-weight-strong);
     letter-spacing: 0;
   }
 
@@ -128,7 +129,7 @@ function handleImport(fileItem) {
   }
 
   :deep(.van-cell__title) {
-    font-weight: 800;
+    font-weight: var(--trade-weight-medium);
   }
 
   :deep(.van-cell__label) {

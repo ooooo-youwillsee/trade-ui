@@ -48,8 +48,8 @@ const currentTitle = computed(() => selectedStrategy.value?.name || '策略详�
 
   :deep(.van-nav-bar__title) {
     color: var(--trade-text);
-    font-size: 1.02rem;
-    font-weight: 900;
+    font-size: var(--trade-font-lg);
+    font-weight: var(--trade-weight-title);
   }
 
   :deep(.van-nav-bar__left .van-icon) {
