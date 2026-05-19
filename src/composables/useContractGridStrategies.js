@@ -1,10 +1,11 @@
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, effectScope, reactive, ref, watch } from 'vue';
 import { calculateContractGrid, CONTRACT_SIDE_LONG, normalizeInput } from '../contractGrid';
 import { defaultInput, presets } from '../strategyDefaults';
 
 const STORAGE_KEY = 'contract-grid-strategies';
 const STORAGE_VERSION = 1;
 let strategyStore;
+let strategyStoreScope;
 
 export function useContractGridStrategies() {
   if (strategyStore) return strategyStore;
@@ -12,26 +13,31 @@ export function useContractGridStrategies() {
   const strategies = ref(loadStrategies());
   const selectedId = ref(strategies.value[0]?.id ?? '');
   const form = reactive({ ...defaultInput });
+  strategyStoreScope = effectScope(true);
 
-  watch(
-    strategies,
-    (items) => {
-      persistStrategies(items);
-    },
-    { deep: true, flush: 'sync' },
-  );
+  strategyStoreScope.run(() => {
+    watch(
+      strategies,
+      (items) => {
+        persistStrategies(items);
+      },
+      { deep: true, flush: 'sync' },
+    );
+  });
 
   const selectedStrategy = computed(() => strategies.value.find((strategy) => strategy.id === selectedId.value));
 
-  watch(
-    selectedStrategy,
-    (strategy) => {
-      if (strategy) {
-        Object.assign(form, strategy);
-      }
-    },
-    { immediate: true },
-  );
+  strategyStoreScope.run(() => {
+    watch(
+      selectedStrategy,
+      (strategy) => {
+        if (strategy) {
+          Object.assign(form, strategy);
+        }
+      },
+      { immediate: true },
+    );
+  });
 
   const calculation = computed(() => calculateStrategy(form));
   const result = computed(() => calculation.value.result);
@@ -45,7 +51,7 @@ export function useContractGridStrategies() {
   const formIsSaved = computed(() => {
     const strategy = selectedStrategy.value;
     if (!strategy) return false;
-    return JSON.stringify(stripMeta(strategy)) === JSON.stringify(stripMeta(form));
+    return JSON.stringify(normalizeInput(strategy)) === JSON.stringify(normalizeInput(form));
   });
 
   function selectStrategy(id) {
