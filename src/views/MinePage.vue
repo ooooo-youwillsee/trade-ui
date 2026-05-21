@@ -1,6 +1,6 @@
 <script setup>
 import { useRouter } from 'vue-router';
-import MinePage from '../components/MinePage.vue';
+import MineProfilePanel from '../components/MineProfilePanel.vue';
 import { useContractGridStrategies } from '../composables/useContractGridStrategies';
 import { useNotice } from '../composables/useNotice';
 
@@ -29,5 +29,5 @@ async function importJson(file) {
 </script>
 
 <template>
-  <MinePage :strategy-count="strategies.length" @export-json="exportJson" @import-json="importJson" />
+  <MineProfilePanel :strategy-count="strategies.length" @export-json="exportJson" @import-json="importJson" />
 </template>

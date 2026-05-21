@@ -7,8 +7,9 @@ defineProps({
 });
 
 const tabs = [
-  { key: 'contract', label: '合约网格', icon: 'apps-o', to: '/contract' },
-  { key: 'stock', label: '股票网格', icon: 'chart-trending-o', to: '/stock' },
+  { key: 'contract', label: '合约', icon: 'apps-o', to: '/contract' },
+  { key: 'spot', label: '现货', icon: 'gold-coin-o', to: '/spot' },
+  { key: 'stock', label: '股票', icon: 'chart-trending-o', to: '/stock' },
   { key: 'mine', label: '我的', icon: 'user-o', to: '/mine' },
 ];
 </script>

@@ -2,9 +2,9 @@
 import { computed, watchEffect } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog } from 'vant';
-import StrategyForm from '../components/StrategyForm.vue';
-import { useContractGridStrategies } from '../composables/useContractGridStrategies';
+import SpotMartingaleForm from '../components/SpotMartingaleForm.vue';
 import { useNotice } from '../composables/useNotice';
+import { useSpotMartingaleStrategies } from '../composables/useSpotMartingaleStrategies';
 
 const route = useRoute();
 const router = useRouter();
@@ -22,22 +22,22 @@ const {
   selectedStrategy,
   selectStrategy,
   setPreset,
-} = useContractGridStrategies();
+} = useSpotMartingaleStrategies();
 const { showNotice } = useNotice();
 
 watchEffect(() => {
-  if (route.name === 'contract-new') {
+  if (route.name === 'spot-martingale-new') {
     addStrategy();
     return;
   }
   selectStrategy(String(route.params.id || ''));
 });
 
-const currentTitle = computed(() => selectedStrategy.value?.name || form.name || '策略编辑');
+const currentTitle = computed(() => selectedStrategy.value?.name || form.name || '现货马丁编辑');
 
 function leaveEdit() {
   resetForm();
-  router.push('/contract');
+  router.push('/spot');
 }
 
 function persistStrategy() {
@@ -47,34 +47,24 @@ function persistStrategy() {
     return;
   }
   showNotice('保存成功');
-  router.push(`/contract/${response.strategy.id}`);
+  router.push(`/spot/martingale/${response.strategy.id}`);
 }
 
 function removeStrategy(id) {
   if (!id) {
-    showConfirmDialog({
-      title: '放弃草稿',
-      message: '确定放弃这个未保存策略吗？',
-      confirmButtonText: '放弃',
-      confirmButtonColor: '#c94f3f',
-    })
-      .then(() => {
-        router.push('/contract');
-        showNotice('已放弃未保存策略');
-      })
-      .catch(() => {});
+    router.push('/spot');
     return;
   }
   showConfirmDialog({
-    title: '删除策略',
+    title: '删除现货马丁',
     message: `确定删除「${selectedStrategy.value?.name || form.name || '未命名策略'}」吗？`,
     confirmButtonText: '删除',
     confirmButtonColor: '#c94f3f',
   })
     .then(() => {
       const response = deleteStrategy(id);
-      router.push('/contract');
-      showNotice(response?.message || '策略已删除');
+      router.push('/spot');
+      showNotice(response?.message || '现货马丁已删除');
     })
     .catch(() => {});
 }
@@ -82,15 +72,14 @@ function removeStrategy(id) {
 function copyStrategy() {
   const strategy = duplicateStrategy();
   showNotice('已复制为新策略');
-  router.push(`/contract/${strategy.id}/edit`);
+  router.push(`/spot/martingale/${strategy.id}/edit`);
 }
 </script>
 
 <template>
   <section class="mobile-page">
     <van-nav-bar :title="currentTitle" left-arrow fixed placeholder @click-left="leaveEdit" />
-
-    <StrategyForm
+    <SpotMartingaleForm
       :calculation="calculation"
       :form="form"
       :form-is-saved="formIsSaved"

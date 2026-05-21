@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { RouterView, useRoute } from 'vue-router';
-import BottomNav from './components/BottomNav.vue';
+import AppBottomNav from './components/AppBottomNav.vue';
 import { useNotice } from './composables/useNotice';
 
 const route = useRoute();
@@ -12,7 +12,7 @@ const activeTab = computed(() => route.meta.tab || 'contract');
 <template>
   <main class="app-shell webapp-shell">
     <RouterView />
-    <BottomNav :active-tab="activeTab" />
+    <AppBottomNav :active-tab="activeTab" />
     <van-dialog v-model:show="notice.open" :title="notice.title" confirm-button-text="确定" @confirm="closeNotice">
       <p class="notice-dialog-message">{{ notice.message }}</p>
     </van-dialog>

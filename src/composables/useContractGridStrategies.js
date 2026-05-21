@@ -1,8 +1,8 @@
 import { computed, effectScope, reactive, ref, watch } from 'vue';
 import { calculateContractGrid, CONTRACT_SIDE_LONG, normalizeInput } from '../contractGrid';
-import { defaultInput, presets } from '../strategyDefaults';
+import { defaultContractGridInput, contractGridPresets } from '../contractGridDefaults';
 
-const STORAGE_KEY = 'contract-grid-strategies';
+const STORAGE_KEY = 'contract-grid-v2-strategies';
 const STORAGE_VERSION = 1;
 let strategyStore;
 let strategyStoreScope;
@@ -12,7 +12,7 @@ export function useContractGridStrategies() {
 
   const strategies = ref(loadStrategies());
   const selectedId = ref(strategies.value[0]?.id ?? '');
-  const form = reactive({ ...defaultInput });
+  const form = reactive({ ...defaultContractGridInput });
   strategyStoreScope = effectScope(true);
 
   strategyStoreScope.run(() => {
@@ -59,7 +59,7 @@ export function useContractGridStrategies() {
   }
 
   function resetForm() {
-    Object.assign(form, selectedStrategy.value || defaultInput);
+    Object.assign(form, selectedStrategy.value || defaultContractGridInput);
   }
 
   function setPreset(preset) {
@@ -68,7 +68,7 @@ export function useContractGridStrategies() {
 
   function addStrategy() {
     const draft = {
-      ...defaultInput,
+      ...defaultContractGridInput,
       name: uniqueStrategyName(strategies.value, '新合约网格'),
     };
     selectedId.value = '';
@@ -109,7 +109,7 @@ export function useContractGridStrategies() {
   function deleteStrategy(id) {
     const deleted = strategies.value.find((strategy) => strategy.id === id);
     if (strategies.value.length === 1) {
-      Object.assign(form, defaultInput);
+      Object.assign(form, defaultContractGridInput);
       strategies.value = [];
       selectedId.value = '';
       persistStrategies(strategies.value);
@@ -151,7 +151,7 @@ export function useContractGridStrategies() {
     }
 
     const normalized = importedStrategies.map((strategy) => ({
-      ...defaultInput,
+      ...defaultContractGridInput,
       ...strategy,
       id: strategy.id || crypto.randomUUID(),
       updatedAt: strategy.updatedAt || Date.now(),
@@ -172,7 +172,7 @@ export function useContractGridStrategies() {
     form,
     formIsSaved,
     importStrategies,
-    presets,
+    presets: contractGridPresets,
     resetForm,
     result,
     saveStrategy,
@@ -222,7 +222,7 @@ export function getHealth(strategyResult, input) {
   return { label: '强平缓冲充足', tone: 'success', distance };
 }
 
-function createStrategy(input = defaultInput) {
+function createStrategy(input = defaultContractGridInput) {
   return {
     id: crypto.randomUUID(),
     updatedAt: Date.now(),
@@ -235,7 +235,7 @@ function loadStrategies() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     const savedStrategies = Array.isArray(saved) ? saved : saved?.strategies;
     if (Array.isArray(savedStrategies) && savedStrategies.length > 0) {
-      return savedStrategies.map((strategy) => ({ ...defaultInput, ...strategy }));
+      return savedStrategies.map((strategy) => ({ ...defaultContractGridInput, ...strategy }));
     }
   } catch {
     localStorage.removeItem(STORAGE_KEY);

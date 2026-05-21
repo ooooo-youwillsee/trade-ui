@@ -1,6 +1,6 @@
 import { CONTRACT_SIDE_LONG, CONTRACT_SIDE_SHORT, GRID_MODE_GEOMETRIC } from './contractGrid';
 
-export const defaultInput = {
+export const defaultContractGridInput = {
   name: 'ETH 合约网格',
   lowerPrice: 900,
   upperPrice: 4500,
@@ -15,11 +15,11 @@ export const defaultInput = {
   additionalInvestment: 0,
 };
 
-export const presets = [
+export const contractGridPresets = [
   {
     label: 'ETH 做多',
     value: {
-      ...defaultInput,
+      ...defaultContractGridInput,
       name: 'ETH 合约网格',
       lowerPrice: 900,
       upperPrice: 4500,

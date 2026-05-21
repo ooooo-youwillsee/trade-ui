@@ -1,7 +1,7 @@
 <script setup>
 import { computed, watchEffect } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import StrategyResults from '../components/StrategyResults.vue';
+import ContractGridResults from '../components/ContractGridResults.vue';
 import { useContractGridStrategies } from '../composables/useContractGridStrategies';
 
 const route = useRoute();
@@ -19,13 +19,13 @@ const currentTitle = computed(() => selectedStrategy.value?.name || '策略详�
   <section class="mobile-page contract-detail-page">
     <van-nav-bar class="detail-nav" :title="currentTitle" left-arrow fixed placeholder @click-left="router.push('/contract')">
       <template #right>
-        <van-button class="detail-edit-button" icon="edit" size="small" type="primary" round @click="router.push(`/contract/${route.params.id}/edit`)">
+        <van-button class="detail-edit-button" icon="edit" size="small" type="primary" round @click="router.push(`/contract/grid/${route.params.id}/edit`)">
           编辑
         </van-button>
       </template>
     </van-nav-bar>
 
-    <StrategyResults :active-input="activeInput" :result="result" />
+    <ContractGridResults :active-input="activeInput" :result="result" />
   </section>
 </template>
 
