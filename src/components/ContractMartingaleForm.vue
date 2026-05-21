@@ -1,6 +1,6 @@
 <script setup>
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
-import { MARTINGALE_SIDE_LONG, MARTINGALE_SIDE_SHORT } from '../martingale';
+import { MARTINGALE_SIDE_LONG, MARTINGALE_SIDE_SHORT } from '../strategies/common/martingale';
 
 defineProps({
   calculation: { type: Object, required: true },

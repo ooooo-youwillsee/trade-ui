@@ -5,7 +5,7 @@ import {
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
-} from '../contractGrid';
+} from '../strategies/common/grid';
 
 defineProps({
   calculation: { type: Object, required: true },

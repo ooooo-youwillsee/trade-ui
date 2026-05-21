@@ -1,5 +1,5 @@
 import { computed, effectScope, reactive, ref, watch } from 'vue';
-import { calculateMartingale, normalizeMartingaleInput } from '../martingale';
+import { calculateMartingale, normalizeMartingaleInput } from './martingale';
 
 const STORAGE_VERSION = 1;
 

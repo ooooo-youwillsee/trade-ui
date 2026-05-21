@@ -1,4 +1,4 @@
-import { MARTINGALE_MODE_SPOT, MARTINGALE_SIDE_LONG } from './martingale';
+import { MARTINGALE_MODE_SPOT, MARTINGALE_SIDE_LONG } from '../common/martingale';
 
 export const defaultSpotMartingaleInput = {
   name: 'ETH 现货马丁',

@@ -1,4 +1,4 @@
-import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from './contractGrid';
+import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from '../common/grid';
 
 export const defaultSpotGridInput = {
   name: 'ETH 现货网格',

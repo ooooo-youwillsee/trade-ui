@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { AlertTriangle, BarChart3, Layers3, ShieldCheck, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
-import { MARTINGALE_SIDE_LONG } from '../martingale';
+import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
 import { formatNumber, formatPercent } from '../utils/formatters';
 
 const props = defineProps({

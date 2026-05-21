@@ -1,6 +1,6 @@
-import { createMartingaleStrategyStore } from './useMartingaleStrategyStoreFactory';
-import { MARTINGALE_MODE_SPOT } from '../martingale';
-import { defaultSpotMartingaleInput, spotMartingalePresets } from '../spotMartingaleDefaults';
+import { createMartingaleStrategyStore } from '../strategies/common/useMartingaleStrategyStoreFactory';
+import { MARTINGALE_MODE_SPOT } from '../strategies/common/martingale';
+import { defaultSpotMartingaleInput, spotMartingalePresets } from '../strategies/spot/martingaleDefaults';
 
 export const useSpotMartingaleStrategies = createMartingaleStrategyStore({
   defaultInput: defaultSpotMartingaleInput,

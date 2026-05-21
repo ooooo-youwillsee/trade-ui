@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { BarChart3, Boxes, ShieldCheck, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
-import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from '../contractGrid';
+import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from '../strategies/common/grid';
 import { getHealth } from '../composables/useContractGridStrategies';
 import { formatNumber, formatPercent } from '../utils/formatters';
 

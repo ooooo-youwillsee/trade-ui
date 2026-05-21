@@ -1,4 +1,4 @@
-import { MARTINGALE_MODE_FUTURES, MARTINGALE_SIDE_LONG } from './martingale';
+import { MARTINGALE_MODE_FUTURES, MARTINGALE_SIDE_LONG } from '../common/martingale';
 
 export const defaultContractMartingaleInput = {
   name: 'ETH 合约马丁',
