@@ -17,9 +17,23 @@ const currentTitle = computed(() => selectedStrategy.value?.name || '现货网�
 
 <template>
   <section class="mobile-page spot-grid-detail-page">
-    <van-nav-bar class="detail-nav" :title="currentTitle" left-arrow fixed placeholder @click-left="router.push('/spot')">
+    <van-nav-bar
+      class="detail-nav"
+      :title="currentTitle"
+      left-arrow
+      fixed
+      placeholder
+      @click-left="router.push('/spot')"
+    >
       <template #right>
-        <van-button class="detail-edit-button" icon="edit" size="small" type="primary" round @click="router.push(`/spot/grid/${route.params.id}/edit`)">
+        <van-button
+          class="detail-edit-button"
+          icon="edit"
+          size="small"
+          type="primary"
+          round
+          @click="router.push(`/spot/grid/${route.params.id}/edit`)"
+        >
           编辑
         </van-button>
       </template>
@@ -29,9 +43,21 @@ const currentTitle = computed(() => selectedStrategy.value?.name || '现货网�
 </template>
 
 <style scoped lang="scss">
-.spot-grid-detail-page { gap: 0; }
-.detail-nav { --van-nav-bar-background: var(--trade-nav-bg); }
-.detail-nav::after { border-bottom: 0; }
-.detail-nav :deep(.van-nav-bar__content) { box-shadow: var(--trade-nav-shadow); backdrop-filter: blur(12px); }
-.detail-edit-button { min-width: 70px; box-shadow: 0 7px 18px rgba(22, 199, 132, 0.24); }
+.spot-grid-detail-page {
+  gap: 0;
+}
+.detail-nav {
+  --van-nav-bar-background: var(--trade-nav-bg);
+}
+.detail-nav::after {
+  border-bottom: 0;
+}
+.detail-nav :deep(.van-nav-bar__content) {
+  box-shadow: var(--trade-nav-shadow);
+  backdrop-filter: blur(12px);
+}
+.detail-edit-button {
+  min-width: 70px;
+  box-shadow: 0 7px 18px rgba(22, 199, 132, 0.24);
+}
 </style>

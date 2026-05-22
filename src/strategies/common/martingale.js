@@ -88,13 +88,19 @@ export function calculateMartingale(rawInput) {
   const maxPosition = summarizeLayers(input, maxExecutableRows);
   const maxCapitalRequired =
     input.mode === MARTINGALE_MODE_FUTURES
-      ? layers.at(-1)?.cumulativeMargin ?? 0
-      : layers.at(-1)?.cumulativeInvestment ?? 0;
+      ? (layers.at(-1)?.cumulativeMargin ?? 0)
+      : (layers.at(-1)?.cumulativeInvestment ?? 0);
   const availableCapital =
     input.mode === MARTINGALE_MODE_FUTURES ? input.totalCapital + input.additionalMargin : input.totalCapital;
   const liquidationPrice =
     input.mode === MARTINGALE_MODE_FUTURES
-      ? estimateLiquidationPrice(input.side, currentPosition.averageEntryPrice, currentPosition.notional, currentPosition.margin, input)
+      ? estimateLiquidationPrice(
+          input.side,
+          currentPosition.averageEntryPrice,
+          currentPosition.notional,
+          currentPosition.margin,
+          input,
+        )
       : 0;
   const liquidationDistance =
     input.mode === MARTINGALE_MODE_FUTURES
@@ -118,7 +124,10 @@ export function calculateMartingale(rawInput) {
     currentNotional: currentPosition.notional,
     currentMargin: currentPosition.margin,
     currentFloatingProfitLoss: currentPosition.floatingProfitLoss,
-    currentEquity: input.mode === MARTINGALE_MODE_FUTURES ? currentPosition.margin + input.additionalMargin + currentPosition.floatingProfitLoss : 0,
+    currentEquity:
+      input.mode === MARTINGALE_MODE_FUTURES
+        ? currentPosition.margin + input.additionalMargin + currentPosition.floatingProfitLoss
+        : 0,
     currentTakeProfitPrice: currentPosition.takeProfitPrice,
     currentTakeProfitProfit: currentPosition.takeProfitProfit,
     maxAverageEntryPrice: maxPosition.averageEntryPrice,
@@ -131,8 +140,10 @@ export function calculateMartingale(rawInput) {
 
 function validateMartingaleInput(input) {
   if (!input.name) throw new Error('策略名称不能为空');
-  if (input.mode !== MARTINGALE_MODE_SPOT && input.mode !== MARTINGALE_MODE_FUTURES) throw new Error('交易模式必须是现货或合约');
-  if (input.side !== MARTINGALE_SIDE_LONG && input.side !== MARTINGALE_SIDE_SHORT) throw new Error('方向必须是做多或做空');
+  if (input.mode !== MARTINGALE_MODE_SPOT && input.mode !== MARTINGALE_MODE_FUTURES)
+    throw new Error('交易模式必须是现货或合约');
+  if (input.side !== MARTINGALE_SIDE_LONG && input.side !== MARTINGALE_SIDE_SHORT)
+    throw new Error('方向必须是做多或做空');
   if (input.currentPrice <= 0) throw new Error('当前价必须大于 0');
   if (input.firstOrderAmount <= 0) throw new Error('首单金额必须大于 0');
   if (input.multiplier < 1) throw new Error('加仓倍数必须大于或等于 1');
@@ -180,8 +191,14 @@ function summarizeLayers(input, layers) {
     { margin: 0, notional: 0, quantity: 0, cost: 0 },
   );
   const averageEntryPrice = summary.quantity > 0 ? summary.cost / summary.quantity : 0;
-  const takeProfitPrice = averageEntryPrice > 0 ? takeProfitTarget(input.side, averageEntryPrice, input.takeProfitPercent) : 0;
-  const floatingProfitLoss = calculateFloatingProfitLoss(input.side, input.currentPrice, averageEntryPrice, summary.quantity);
+  const takeProfitPrice =
+    averageEntryPrice > 0 ? takeProfitTarget(input.side, averageEntryPrice, input.takeProfitPercent) : 0;
+  const floatingProfitLoss = calculateFloatingProfitLoss(
+    input.side,
+    input.currentPrice,
+    averageEntryPrice,
+    summary.quantity,
+  );
   const takeProfitProfit = Math.abs(takeProfitPrice - averageEntryPrice) * summary.quantity;
 
   return {

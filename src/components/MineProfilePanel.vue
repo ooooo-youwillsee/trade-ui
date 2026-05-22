@@ -80,9 +80,7 @@ function handleImport(fileItem) {
   border: 1px solid rgba(22, 199, 132, 0.22);
   border-radius: 8px;
   padding: 18px;
-  background:
-    linear-gradient(135deg, rgba(22, 199, 132, 0.13), rgba(255, 255, 255, 0.9)),
-    var(--trade-surface);
+  background: linear-gradient(135deg, rgba(22, 199, 132, 0.13), rgba(255, 255, 255, 0.9)), var(--trade-surface);
   box-shadow: var(--trade-card-shadow);
 
   strong {
@@ -163,8 +161,6 @@ function handleImport(fileItem) {
 }
 
 :global(:root[data-theme='dark']) .mine-summary {
-  background:
-    linear-gradient(135deg, rgba(22, 199, 132, 0.18), rgba(21, 31, 27, 0.94)),
-    var(--trade-surface);
+  background: linear-gradient(135deg, rgba(22, 199, 132, 0.18), rgba(21, 31, 27, 0.94)), var(--trade-surface);
 }
 </style>

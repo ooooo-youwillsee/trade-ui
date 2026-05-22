@@ -48,7 +48,10 @@ export function createMartingaleStrategyStore({ defaultInput, mode, newName, pre
     const formIsSaved = computed(() => {
       const strategy = selectedStrategy.value;
       if (!strategy) return false;
-      return JSON.stringify(normalizeMartingaleInput(strategy)) === JSON.stringify(normalizeMartingaleInput({ ...form, mode }));
+      return (
+        JSON.stringify(normalizeMartingaleInput(strategy)) ===
+        JSON.stringify(normalizeMartingaleInput({ ...form, mode }))
+      );
     });
 
     function selectStrategy(id) {

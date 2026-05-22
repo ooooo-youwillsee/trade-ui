@@ -34,7 +34,9 @@ const cards = computed(() => {
   const gridItems = isContract.value
     ? contractGridStore.strategySummaries.value.map((item) => contractGridCard(item))
     : spotGridStore.strategySummaries.value.map((item) => spotGridCard(item));
-  const martingaleItems = (isContract.value ? contractMartingaleStore : spotMartingaleStore).strategySummaries.value.map((item) => martingaleCard(item));
+  const martingaleItems = (
+    isContract.value ? contractMartingaleStore : spotMartingaleStore
+  ).strategySummaries.value.map((item) => martingaleCard(item));
   return [...gridItems, ...martingaleItems].sort((a, b) => b.updatedAt - a.updatedAt);
 });
 
@@ -90,7 +92,11 @@ function contractGridCard(item) {
     editPath: `/contract/grid/${strategy.id}/edit`,
     remove: () => contractGridStore.deleteStrategy(strategy.id),
     metrics: calculation.error
-      ? [['参数异常', '-'], ['强平价', '-'], ['收益', '-']]
+      ? [
+          ['参数异常', '-'],
+          ['强平价', '-'],
+          ['收益', '-'],
+        ]
       : [
           ['强平价', formatNumber(calculation.result.estimatedGridLiquidationPrice, 2)],
           ['单格收益', formatPercent(calculation.result.gridProfitRate, 3)],
@@ -112,7 +118,11 @@ function spotGridCard(item) {
     editPath: `/spot/grid/${strategy.id}/edit`,
     remove: () => spotGridStore.deleteStrategy(strategy.id),
     metrics: calculation.error
-      ? [['参数异常', '-'], ['均价', '-'], ['收益', '-']]
+      ? [
+          ['参数异常', '-'],
+          ['均价', '-'],
+          ['收益', '-'],
+        ]
       : [
           ['持仓均价', formatNumber(calculation.result.averageEntryPrice, 2)],
           ['单格收益', formatPercent(calculation.result.gridProfitRate, 3)],
@@ -135,11 +145,21 @@ function martingaleCard(item) {
     editPath: `/${market.value}/martingale/${strategy.id}/edit`,
     remove: () => (isContract.value ? contractMartingaleStore : spotMartingaleStore).deleteStrategy(strategy.id),
     metrics: calculation.error
-      ? [['参数异常', '-'], ['层数', '-'], ['止盈', '-']]
+      ? [
+          ['参数异常', '-'],
+          ['层数', '-'],
+          ['止盈', '-'],
+        ]
       : [
           ['可执行层数', `${calculation.result.executableLayers}/${calculation.result.layers.length}`],
           ['资金需求', formatNumber(calculation.result.maxCapitalRequired, 2)],
-          [isContract.value ? '强平价' : '止盈价', formatNumber(isContract.value ? calculation.result.liquidationPrice : calculation.result.maxTakeProfitPrice, 2)],
+          [
+            isContract.value ? '强平价' : '止盈价',
+            formatNumber(
+              isContract.value ? calculation.result.liquidationPrice : calculation.result.maxTakeProfitPrice,
+              2,
+            ),
+          ],
         ],
   };
 }
@@ -208,7 +228,13 @@ function martingaleCard(item) {
       </van-cell-group>
     </div>
 
-    <van-action-sheet v-model:show="showAddSheet" :actions="addActions" cancel-text="取消" close-on-click-action @select="openAdd" />
+    <van-action-sheet
+      v-model:show="showAddSheet"
+      :actions="addActions"
+      cancel-text="取消"
+      close-on-click-action
+      @select="openAdd"
+    />
   </section>
 </template>
 

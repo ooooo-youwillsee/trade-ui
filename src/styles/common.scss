@@ -16,9 +16,8 @@
   --trade-warn-soft: rgba(200, 137, 8, 0.13);
   --trade-focus: rgba(47, 118, 200, 0.32);
   --trade-font-family:
-    Inter, "SF Pro Text", "Segoe UI", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
-  --trade-number-font:
-    "DIN Alternate", "Roboto Mono", "SFMono-Regular", Consolas, monospace;
+    Inter, 'SF Pro Text', 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif;
+  --trade-number-font: 'DIN Alternate', 'Roboto Mono', 'SFMono-Regular', Consolas, monospace;
   --trade-font-xs: 0.72rem;
   --trade-font-sm: 0.8rem;
   --trade-font-md: 0.92rem;
@@ -37,9 +36,7 @@
   --trade-nav-shadow: 0 8px 24px rgba(25, 43, 36, 0.08);
   --trade-bottom-bg: rgba(255, 255, 255, 0.96);
   --trade-card-shadow: 0 10px 28px rgba(27, 42, 36, 0.07);
-  --trade-save-bg:
-    linear-gradient(135deg, rgba(232, 249, 241, 0.98), rgba(255, 255, 255, 0.96)),
-    var(--trade-surface);
+  --trade-save-bg: linear-gradient(135deg, rgba(232, 249, 241, 0.98), rgba(255, 255, 255, 0.96)), var(--trade-surface);
   --van-primary-color: var(--trade-up);
   --van-success-color: var(--trade-up);
   --van-danger-color: var(--trade-down);
@@ -108,9 +105,7 @@
   --trade-nav-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
   --trade-bottom-bg: rgba(16, 22, 21, 0.96);
   --trade-card-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
-  --trade-save-bg:
-    linear-gradient(135deg, rgba(22, 199, 132, 0.18), rgba(21, 31, 27, 0.96)),
-    var(--trade-surface);
+  --trade-save-bg: linear-gradient(135deg, rgba(22, 199, 132, 0.18), rgba(21, 31, 27, 0.96)), var(--trade-surface);
 }
 
 * {

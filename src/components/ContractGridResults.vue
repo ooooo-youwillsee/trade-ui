@@ -197,9 +197,7 @@ const inputRows = computed(() => [
   display: grid;
   gap: 14px;
   padding: 18px;
-  background:
-    linear-gradient(135deg, rgba(22, 199, 132, 0.14), rgba(255, 255, 255, 0.92)),
-    var(--trade-surface);
+  background: linear-gradient(135deg, rgba(22, 199, 132, 0.14), rgba(255, 255, 255, 0.92)), var(--trade-surface);
 
   h2 {
     margin: 0;
@@ -395,8 +393,6 @@ const inputRows = computed(() => [
 }
 
 :global(:root[data-theme='dark']) .detail-hero {
-  background:
-    linear-gradient(135deg, rgba(22, 199, 132, 0.18), rgba(21, 31, 27, 0.94)),
-    var(--trade-surface);
+  background: linear-gradient(135deg, rgba(22, 199, 132, 0.18), rgba(21, 31, 27, 0.94)), var(--trade-surface);
 }
 </style>

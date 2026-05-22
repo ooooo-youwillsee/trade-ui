@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  CONTRACT_SIDE_LONG,
-  CONTRACT_SIDE_SHORT,
-  GRID_MODE_ARITHMETIC,
-} from '../common/grid';
+import { CONTRACT_SIDE_LONG, CONTRACT_SIDE_SHORT, GRID_MODE_ARITHMETIC } from '../common/grid';
 import { calculateContractGrid } from './grid';
 
 describe('calculateContractGrid', () => {

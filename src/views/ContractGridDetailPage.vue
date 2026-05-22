@@ -17,9 +17,23 @@ const currentTitle = computed(() => selectedStrategy.value?.name || '策略详�
 
 <template>
   <section class="mobile-page contract-detail-page">
-    <van-nav-bar class="detail-nav" :title="currentTitle" left-arrow fixed placeholder @click-left="router.push('/contract')">
+    <van-nav-bar
+      class="detail-nav"
+      :title="currentTitle"
+      left-arrow
+      fixed
+      placeholder
+      @click-left="router.push('/contract')"
+    >
       <template #right>
-        <van-button class="detail-edit-button" icon="edit" size="small" type="primary" round @click="router.push(`/contract/grid/${route.params.id}/edit`)">
+        <van-button
+          class="detail-edit-button"
+          icon="edit"
+          size="small"
+          type="primary"
+          round
+          @click="router.push(`/contract/grid/${route.params.id}/edit`)"
+        >
           编辑
         </van-button>
       </template>

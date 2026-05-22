@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  calculateMartingale,
-  MARTINGALE_MODE_FUTURES,
-  MARTINGALE_MODE_SPOT,
-  MARTINGALE_SIDE_LONG,
-} from './martingale';
+import { calculateMartingale, MARTINGALE_MODE_FUTURES, MARTINGALE_MODE_SPOT, MARTINGALE_SIDE_LONG } from './martingale';
 
 describe('calculateMartingale', () => {
   const spotInput = {

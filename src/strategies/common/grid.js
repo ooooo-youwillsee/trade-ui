@@ -30,7 +30,11 @@ export function filledPositions(input, gridPrices) {
         return;
       }
       if (price < input.entryPrice && price >= input.currentPrice) {
-        positions.push({ gridPrice: price, openPrice: price, targetPrice: nextHigherGridPrice(gridPrices, index) });
+        positions.push({
+          gridPrice: price,
+          openPrice: price,
+          targetPrice: nextHigherGridPrice(gridPrices, index),
+        });
       }
       return;
     }
@@ -41,7 +45,11 @@ export function filledPositions(input, gridPrices) {
         return;
       }
       if (price > input.entryPrice && price <= input.currentPrice) {
-        positions.push({ gridPrice: price, openPrice: price, targetPrice: nextLowerGridPrice(gridPrices, index) });
+        positions.push({
+          gridPrice: price,
+          openPrice: price,
+          targetPrice: nextLowerGridPrice(gridPrices, index),
+        });
       }
     }
   });

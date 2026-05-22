@@ -107,7 +107,13 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
     </van-cell-group>
 
     <div class="save-actions">
-      <van-button icon-position="left" round type="primary" :disabled="Boolean(calculation.error)" @click="$emit('save-strategy')">
+      <van-button
+        icon-position="left"
+        round
+        type="primary"
+        :disabled="Boolean(calculation.error)"
+        @click="$emit('save-strategy')"
+      >
         <template #icon><Save :size="17" /></template>
         保存策略
       </van-button>

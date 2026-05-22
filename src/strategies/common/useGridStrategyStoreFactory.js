@@ -26,11 +26,10 @@ export function createGridStrategyStore({
     const scope = effectScope(true);
 
     scope.run(() => {
-      watch(
-        strategies,
-        (items) => persistStrategies(storageKey, items),
-        { deep: true, flush: 'sync' },
-      );
+      watch(strategies, (items) => persistStrategies(storageKey, items), {
+        deep: true,
+        flush: 'sync',
+      });
     });
 
     const selectedStrategy = computed(() => strategies.value.find((strategy) => strategy.id === selectedId.value));

@@ -16,13 +16,7 @@ const tabs = [
 
 <template>
   <van-tabbar class="bottom-nav" :model-value="activeTab" route safe-area-inset-bottom>
-    <van-tabbar-item
-      v-for="tab in tabs"
-      :key="tab.key"
-      :icon="tab.icon"
-      :name="tab.key"
-      :to="tab.to"
-    >
+    <van-tabbar-item v-for="tab in tabs" :key="tab.key" :icon="tab.icon" :name="tab.key" :to="tab.to">
       {{ tab.label }}
     </van-tabbar-item>
   </van-tabbar>

@@ -24,8 +24,7 @@ export function calculateContractGrid(input) {
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
   const position = calculateCurrentPosition(input, filledGridPositions, perGridNotional);
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
-  const gridRatio =
-    input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
+  const gridRatio = input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
 
   const result = {
     name: input.name,

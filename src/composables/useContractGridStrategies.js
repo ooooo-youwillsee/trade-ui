@@ -54,7 +54,9 @@ export function getHealth(strategyResult, input) {
   if (liquidation === 0 || current === 0) return { label: '未形成仓位', tone: 'muted', distance: 0 };
 
   const distance =
-    input.side === CONTRACT_SIDE_LONG ? ((current - liquidation) / current) * 100 : ((liquidation - current) / current) * 100;
+    input.side === CONTRACT_SIDE_LONG
+      ? ((current - liquidation) / current) * 100
+      : ((liquidation - current) / current) * 100;
 
   if (distance < 8) return { label: '强平缓冲偏窄', tone: 'danger', distance };
   if (distance < 20) return { label: '强平缓冲一般', tone: 'warning', distance };
