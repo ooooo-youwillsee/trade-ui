@@ -1,3 +1,6 @@
+// 通用格式化工具：统一数值和百分比在页面中的展示方式。
+
+// 数字格式化会兜底非法值，避免页面出现 NaN 或 Infinity。
 export function formatNumber(value, digits = 4) {
   if (!Number.isFinite(value)) return '-';
   return new Intl.NumberFormat('zh-CN', {
@@ -6,6 +9,7 @@ export function formatNumber(value, digits = 4) {
   }).format(value);
 }
 
+// 百分比字段由调用方传入百分数值，这里只负责复用数字格式并拼接百分号。
 export function formatPercent(value, digits = 4) {
   return `${formatNumber(value, digits)}%`;
 }

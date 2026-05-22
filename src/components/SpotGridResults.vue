@@ -1,9 +1,11 @@
 <script setup>
+// 现货网格结果组件：展示持仓均价、浮盈浮亏、网格价格和收益率。
 import { computed } from 'vue';
 import { BarChart3, Boxes, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from '../strategies/common/grid';
 import { formatNumber, formatPercent } from '../utils/formatters';
 
+// activeInput 和 result 分离，便于结果缺失时仍可展示输入相关状态。
 const props = defineProps({
   activeInput: { type: Object, default: null },
   result: { type: Object, default: null },
@@ -11,6 +13,7 @@ const props = defineProps({
 
 const sideLabel = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? TrendingUp : TrendingDown));
+// 网格数量很大时截取头尾展示，避免移动端列表过长。
 const gridPreview = computed(() => {
   if (!props.result) return [];
   if (props.result.gridPrices.length <= 16) return props.result.gridPrices;
@@ -43,6 +46,7 @@ const summaryMetrics = computed(() => [
 </script>
 
 <template>
+  <!-- 现货网格结果：没有强平风险，重点展示持仓价值和网格收益。 -->
   <div class="results-panel">
     <section class="detail-hero">
       <div class="detail-hero__top">
@@ -119,6 +123,7 @@ const summaryMetrics = computed(() => [
 </template>
 
 <style scoped lang="scss">
+/* 现货结果布局：复用指标卡片和网格明细样式。 */
 .results-panel {
   display: grid;
   gap: 12px;

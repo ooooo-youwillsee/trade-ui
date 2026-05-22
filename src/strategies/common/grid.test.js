@@ -9,6 +9,7 @@ import {
   limitedGridProfitLoss,
 } from './grid';
 
+// 公共网格算法测试：验证价格序列、成交网格识别和单格盈亏封顶。
 describe('buildGridPrices', () => {
   it('builds arithmetic grid prices including both bounds', () => {
     expect(buildGridPrices(100, 200, 4, GRID_MODE_ARITHMETIC)).toEqual([100, 125, 150, 175, 200]);
@@ -20,6 +21,7 @@ describe('buildGridPrices', () => {
 });
 
 describe('filledPositions', () => {
+  // 固定网格价格便于明确测试当前价和入场价之间的触发范围。
   const gridPrices = [100, 125, 150, 175, 200];
 
   it('returns filled long grid positions between current and entry prices', () => {

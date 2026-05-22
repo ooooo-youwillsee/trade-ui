@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { CONTRACT_SIDE_LONG, CONTRACT_SIDE_SHORT, GRID_MODE_ARITHMETIC } from '../common/grid';
 import { calculateContractGrid } from './grid';
 
+// 合约网格测试重点覆盖保证金、名义价值、强平价和做空收益率。
 describe('calculateContractGrid', () => {
+  // 基础输入保持简单整数，方便断言每格价格和仓位数量。
   const validInput = {
     name: 'contract grid',
     lowerPrice: 100,

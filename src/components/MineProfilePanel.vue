@@ -1,7 +1,9 @@
 <script setup>
+// “我的”页面面板：展示本地策略数量、主题开关和数据导入导出入口。
 import { Database, Download, Moon, Upload } from '@lucide/vue';
 import { useTheme } from '../composables/useTheme';
 
+// 策略数量由页面传入，组件不直接读取具体 store。
 defineProps({
   strategyCount: {
     type: Number,
@@ -12,6 +14,7 @@ defineProps({
 const emit = defineEmits(['export-json', 'import-json']);
 const { isDark } = useTheme();
 
+// Vant uploader 读取文件后立即上抛文件对象，并阻止组件默认上传行为。
 function handleImport(fileItem) {
   if (fileItem?.file) {
     emit('import-json', fileItem.file);
@@ -21,6 +24,7 @@ function handleImport(fileItem) {
 </script>
 
 <template>
+  <!-- 个人页主体：本地数据概览、偏好设置和 JSON 数据管理。 -->
   <section class="mobile-page mine-page">
     <van-nav-bar title="我的" fixed placeholder />
 
@@ -68,6 +72,7 @@ function handleImport(fileItem) {
 </template>
 
 <style scoped lang="scss">
+/* 我的页面布局：用摘要卡突出本地策略数量。 */
 .mine-page {
   gap: 14px;
   padding-top: 12px;

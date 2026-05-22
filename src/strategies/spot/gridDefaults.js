@@ -1,5 +1,6 @@
 import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from '../common/grid';
 
+// 现货网格默认表单值：不含杠杆和追加保证金，只关注投入金额。
 export const defaultSpotGridInput = {
   name: 'ETH 现货网格',
   lowerPrice: 900,
@@ -13,6 +14,7 @@ export const defaultSpotGridInput = {
   investment: 500,
 };
 
+// 现货网格预设：当前复用默认输入，后续可扩展更多币种或区间。
 export const spotGridPresets = [
   {
     label: 'ETH 现货网格',

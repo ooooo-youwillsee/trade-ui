@@ -1,4 +1,5 @@
 <script setup>
+// 市场策略列表页：根据当前 market 汇总网格/马丁策略卡片，并提供新增、编辑、删除入口。
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog } from 'vant';
@@ -17,6 +18,7 @@ const router = useRouter();
 const { showNotice } = useNotice();
 const showAddSheet = ref(false);
 
+// 当前市场来自路由 meta，合约和现货复用同一个列表页。
 const market = computed(() => route.meta.market || 'contract');
 const isContract = computed(() => market.value === 'contract');
 const title = computed(() => (isContract.value ? '合约' : '现货'));
@@ -25,11 +27,13 @@ const contractMartingaleStore = useContractMartingaleStrategies();
 const spotGridStore = useSpotGridStrategies();
 const spotMartingaleStore = useSpotMartingaleStrategies();
 
+// 新增面板根据当前市场动态生成网格和马丁两个动作。
 const addActions = computed(() => [
   { name: `${title.value}网格`, type: 'grid' },
   { name: `${title.value}马丁`, type: 'martingale' },
 ]);
 
+// 列表卡片统一成同一结构，方便模板用一套布局渲染不同策略类型。
 const cards = computed(() => {
   const gridItems = isContract.value
     ? contractGridStore.strategySummaries.value.map((item) => contractGridCard(item))
@@ -40,6 +44,7 @@ const cards = computed(() => {
   return [...gridItems, ...martingaleItems].sort((a, b) => b.updatedAt - a.updatedAt);
 });
 
+// 根据用户选择创建对应草稿，并跳转到对应新建页。
 function openAdd(action) {
   showAddSheet.value = false;
   if (action.type === 'grid') {
@@ -65,6 +70,7 @@ function editCard(card) {
   router.push(card.editPath);
 }
 
+// 删除列表卡片前弹出确认，具体删除函数由卡片构造器注入。
 function removeCard(card) {
   showConfirmDialog({
     title: '删除策略',
@@ -79,6 +85,7 @@ function removeCard(card) {
     .catch(() => {});
 }
 
+// 合约网格卡片保留强平价、单格收益和浮动盈亏三个关键指标。
 function contractGridCard(item) {
   const { strategy, calculation } = item;
   return {
@@ -105,6 +112,7 @@ function contractGridCard(item) {
   };
 }
 
+// 现货网格卡片展示均价、单格收益和浮动盈亏，避免出现合约风险字段。
 function spotGridCard(item) {
   const { strategy, calculation } = item;
   return {
@@ -131,6 +139,7 @@ function spotGridCard(item) {
   };
 }
 
+// 马丁卡片根据当前市场切换强平价或止盈价展示口径。
 function martingaleCard(item) {
   const { strategy, calculation } = item;
   const mode = isContract.value ? '合约' : '现货';
@@ -166,6 +175,7 @@ function martingaleCard(item) {
 </script>
 
 <template>
+  <!-- 策略列表页：顶部新增按钮、空状态、策略卡片列表和新增动作面板。 -->
   <section class="mobile-page market-home">
     <van-nav-bar class="app-nav-bar" :title="title" fixed placeholder>
       <template #right>
@@ -239,6 +249,7 @@ function martingaleCard(item) {
 </template>
 
 <style scoped lang="scss">
+/* 市场首页布局：卡片列表按更新时间排序，适合移动端快速浏览。 */
 .market-home {
   gap: 12px;
 }

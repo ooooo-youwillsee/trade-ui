@@ -1,4 +1,5 @@
 <script setup>
+// 现货网格编辑表单：采集价格区间、投入金额和网格模式。
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
 import {
   CONTRACT_SIDE_LONG,
@@ -7,6 +8,7 @@ import {
   GRID_MODE_GEOMETRIC,
 } from '../strategies/common/grid';
 
+// form 来自 store，组件直接使用 v-model 修改草稿。
 defineProps({
   calculation: { type: Object, required: true },
   form: { type: Object, required: true },
@@ -15,10 +17,12 @@ defineProps({
   selectedId: { type: String, required: true },
 });
 
+// 保存、复制、重置、删除等动作由页面统一处理，便于复用提示和路由逻辑。
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
 </script>
 
 <template>
+  <!-- 现货网格表单主体：比合约表单少杠杆和追加保证金字段。 -->
   <div class="save-page">
     <section class="save-hero">
       <p class="eyebrow">Spot Grid Plan</p>
@@ -113,6 +117,7 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
 </template>
 
 <style scoped lang="scss">
+/* 现货表单布局：保持与合约网格一致的视觉结构。 */
 .save-page {
   display: grid;
   gap: 12px;

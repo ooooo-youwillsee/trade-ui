@@ -1,4 +1,5 @@
 <script setup>
+// 合约马丁编辑页：处理新建、保存、复制、删除和路由跳转。
 import { computed, watchEffect } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog } from 'vant';
@@ -25,6 +26,7 @@ const {
 } = useContractMartingaleStrategies();
 const { showNotice } = useNotice();
 
+// 新建页创建草稿；编辑页根据路由 id 回填已有策略。
 watchEffect(() => {
   if (route.name === 'contract-martingale-new') {
     addStrategy();
@@ -35,11 +37,13 @@ watchEffect(() => {
 
 const currentTitle = computed(() => selectedStrategy.value?.name || form.name || '合约马丁编辑');
 
+// 返回列表前恢复 store 表单，避免残留未保存修改。
 function leaveEdit() {
   resetForm();
   router.push('/contract');
 }
 
+// 保存后进入详情页，校验失败则通过全局提示反馈。
 function persistStrategy() {
   const response = saveStrategy();
   if (!response?.ok) {
@@ -50,6 +54,7 @@ function persistStrategy() {
   router.push(`/contract/martingale/${response.strategy.id}`);
 }
 
+// 已保存策略删除前弹确认，未保存草稿直接返回列表。
 function removeStrategy(id) {
   if (!id) {
     router.push('/contract');
@@ -69,6 +74,7 @@ function removeStrategy(id) {
     .catch(() => {});
 }
 
+// 复制策略会立即创建新策略并进入编辑状态。
 function copyStrategy() {
   const strategy = duplicateStrategy();
   showNotice('已复制为新策略');
@@ -77,6 +83,7 @@ function copyStrategy() {
 </script>
 
 <template>
+  <!-- 合约马丁编辑页主体：导航和表单组件分离。 -->
   <section class="mobile-page">
     <van-nav-bar :title="currentTitle" left-arrow fixed placeholder @click-left="leaveEdit" />
     <ContractMartingaleForm

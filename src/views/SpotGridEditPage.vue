@@ -1,4 +1,5 @@
 <script setup>
+// 现货网格编辑页：连接路由、现货网格表单和策略 store。
 import { computed, watchEffect } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog } from 'vant';
@@ -25,6 +26,7 @@ const {
 } = useSpotGridStrategies();
 const { showNotice } = useNotice();
 
+// 新建路由生成草稿，编辑路由按 id 选中已有策略。
 watchEffect(() => {
   if (route.name === 'spot-grid-new') {
     addStrategy();
@@ -35,11 +37,13 @@ watchEffect(() => {
 
 const currentTitle = computed(() => selectedStrategy.value?.name || form.name || '现货网格编辑');
 
+// 返回列表前重置表单，避免未保存内容影响下一次编辑。
 function leaveEdit() {
   resetForm();
   router.push('/spot');
 }
 
+// 保存成功进入详情页，失败则展示 store 返回的错误消息。
 function persistStrategy() {
   const response = saveStrategy();
   if (!response?.ok) {
@@ -50,6 +54,7 @@ function persistStrategy() {
   router.push(`/spot/grid/${response.strategy.id}`);
 }
 
+// 删除已有策略需要确认，未保存草稿直接放弃。
 function removeStrategy(id) {
   if (!id) {
     router.push('/spot');
@@ -69,6 +74,7 @@ function removeStrategy(id) {
     .catch(() => {});
 }
 
+// 复制后进入新策略编辑页，保持编辑流程连贯。
 function copyStrategy() {
   const strategy = duplicateStrategy();
   showNotice('已复制为新策略');
@@ -77,6 +83,7 @@ function copyStrategy() {
 </script>
 
 <template>
+  <!-- 现货网格编辑页主体：导航和表单组件分离。 -->
   <section class="mobile-page">
     <van-nav-bar :title="currentTitle" left-arrow fixed placeholder @click-left="leaveEdit" />
     <SpotGridForm

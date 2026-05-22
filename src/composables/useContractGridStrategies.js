@@ -2,6 +2,7 @@ import { createGridStrategyStore } from '../strategies/common/useGridStrategySto
 import { calculateContractGrid, CONTRACT_SIDE_LONG, normalizeInput } from '../strategies/contract/grid';
 import { contractGridPresets, defaultContractGridInput } from '../strategies/contract/gridDefaults';
 
+// 合约网格策略 composable：注入合约网格计算、默认参数和本地存储 key。
 export const useContractGridStrategies = createGridStrategyStore({
   calculateStrategy,
   defaultInput: defaultContractGridInput,
@@ -25,6 +26,7 @@ export const useContractGridStrategies = createGridStrategyStore({
   ],
 });
 
+// 统一包装计算异常，避免表单输入不合法时页面渲染中断。
 export function calculateStrategy(strategy) {
   try {
     const input = normalizeInput(strategy);
@@ -42,11 +44,13 @@ export function calculateStrategy(strategy) {
   }
 }
 
+// 当前收益率以已成交保证金为分母，体现实际占用资金的回报。
 export function currentYieldRate(strategyResult) {
   if (!strategyResult?.filledMargin) return 0;
   return (strategyResult.floatingProfitLoss / strategyResult.filledMargin) * 100;
 }
 
+// 根据当前价格与估算强平价距离生成健康度标签和颜色语义。
 export function getHealth(strategyResult, input) {
   if (!strategyResult || !input) return { label: '参数异常', tone: 'danger', distance: 0 };
   const liquidation = strategyResult.estimatedGridLiquidationPrice;

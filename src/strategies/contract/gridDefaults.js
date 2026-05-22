@@ -1,5 +1,6 @@
 import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from './grid';
 
+// 合约网格默认表单值：用于首次进入页面和删除最后一个策略后的回填。
 export const defaultContractGridInput = {
   name: 'ETH 合约网格',
   lowerPrice: 900,
@@ -15,6 +16,7 @@ export const defaultContractGridInput = {
   additionalInvestment: 0,
 };
 
+// 合约网格预设：为用户提供可快速开始的典型参数组合。
 export const contractGridPresets = [
   {
     label: 'ETH 做多',

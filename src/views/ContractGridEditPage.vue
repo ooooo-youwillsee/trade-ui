@@ -1,4 +1,5 @@
 <script setup>
+// 合约网格编辑页：连接路由、表单组件、策略 store 和保存/删除提示。
 import { computed, watchEffect } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog } from 'vant';
@@ -25,6 +26,7 @@ const {
 } = useContractGridStrategies();
 const { showNotice } = useNotice();
 
+// 新建路由生成草稿，编辑路由按 id 选中已有策略。
 watchEffect(() => {
   if (route.name === 'contract-grid-new') {
     addStrategy();
@@ -35,11 +37,13 @@ watchEffect(() => {
 
 const currentTitle = computed(() => selectedStrategy.value?.name || form.name || '策略编辑');
 
+// 离开编辑页时重置表单，避免未保存草稿污染下一次进入。
 function leaveEdit() {
   resetForm();
   router.push('/contract');
 }
 
+// 保存成功后跳转详情页；失败时展示计算校验错误。
 function persistStrategy() {
   const response = saveStrategy();
   if (!response?.ok) {
@@ -50,6 +54,7 @@ function persistStrategy() {
   router.push(`/contract/grid/${response.strategy.id}`);
 }
 
+// 删除已保存策略前需要确认；未保存草稿则按放弃处理。
 function removeStrategy(id) {
   if (!id) {
     showConfirmDialog({
@@ -79,6 +84,7 @@ function removeStrategy(id) {
     .catch(() => {});
 }
 
+// 复制后进入新策略编辑页，方便用户继续微调。
 function copyStrategy() {
   const strategy = duplicateStrategy();
   showNotice('已复制为新策略');
@@ -87,6 +93,7 @@ function copyStrategy() {
 </script>
 
 <template>
+  <!-- 编辑页主体：顶部返回导航和合约网格表单。 -->
   <section class="mobile-page">
     <van-nav-bar :title="currentTitle" left-arrow fixed placeholder @click-left="leaveEdit" />
 

@@ -10,6 +10,9 @@ import {
   totalYieldRate,
 } from '../common/grid';
 
+// 现货网格计算模块：复用公共网格算法，并用投入金额计算持仓价值。
+
+// 将现货网格表单字段规范成计算层需要的类型。
 export function normalizeSpotGridInput(rawInput) {
   return {
     name: String(rawInput.name || '').trim(),
@@ -25,9 +28,11 @@ export function normalizeSpotGridInput(rawInput) {
   };
 }
 
+// 计算现货网格的持仓、浮动盈亏、当前权益和网格收益率。
 export function calculateSpotGrid(input) {
   validateSpotGridInput(input);
 
+  // 每格投入金额固定，成交网格数量决定当前实际持仓成本。
   const gridPrices = buildGridPrices(input.lowerPrice, input.upperPrice, input.gridCount, input.gridMode);
   const perGridInvestment = input.investment / input.gridCount;
   const filledGridPositions = filledPositions(input, gridPrices);
@@ -59,6 +64,7 @@ export function calculateSpotGrid(input) {
   };
 }
 
+// 现货网格不涉及杠杆，但仍需要价格区间、网格数和投入金额有效。
 function validateSpotGridInput(input) {
   if (!input.name) throw new Error('策略名称不能为空');
   if (input.lowerPrice <= 0) throw new Error('下限价格必须大于 0');
@@ -73,6 +79,7 @@ function validateSpotGridInput(input) {
   if (input.side !== CONTRACT_SIDE_LONG && input.side !== CONTRACT_SIDE_SHORT) throw new Error('方向必须是做多或做空');
 }
 
+// 现货仓位以成本和数量累计，当前价值等于成本加受目标价限制后的浮盈浮亏。
 function calculateCurrentPosition(input, positions, perGridInvestment) {
   const position = {
     quantity: 0,

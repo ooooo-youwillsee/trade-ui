@@ -1,4 +1,5 @@
 <script setup>
+// 合约网格编辑表单：负责采集策略参数，并把保存/复制/删除等动作交给页面处理。
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
 import {
   CONTRACT_SIDE_LONG,
@@ -7,6 +8,7 @@ import {
   GRID_MODE_GEOMETRIC,
 } from '../strategies/common/grid';
 
+// 父页面传入响应式 form 和计算状态，表单只负责展示和触发事件。
 defineProps({
   calculation: {
     type: Object,
@@ -30,10 +32,12 @@ defineProps({
   },
 });
 
+// 事件命名保持业务动作语义，父页面根据当前路由决定具体跳转和提示。
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
 </script>
 
 <template>
+  <!-- 合约网格保存页主体：按预设、基础信息、价格区间和资金网格分组。 -->
   <div class="save-page">
     <section class="save-hero">
       <p class="eyebrow">Fresh Grid Plan</p>
@@ -134,6 +138,7 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
 </template>
 
 <style scoped lang="scss">
+/* 表单页面布局：通过网格间距让移动端多个输入分组保持清晰。 */
 .save-page {
   display: grid;
   gap: 12px;

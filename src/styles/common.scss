@@ -1,3 +1,4 @@
+/* 全局设计变量：统一交易工具的颜色、字体、字号、阴影和 Vant 主题覆盖。 */
 :root {
   --trade-bg: #f5f7f8;
   --trade-surface: #ffffff;
@@ -81,6 +82,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 深色主题变量：由 useTheme 写入 data-theme 后覆盖浅色变量。 */
 :root[data-theme='dark'] {
   --trade-bg: #101615;
   --trade-surface: #171f1d;
@@ -108,6 +110,7 @@
   --trade-save-bg: linear-gradient(135deg, rgba(22, 199, 132, 0.18), rgba(21, 31, 27, 0.96)), var(--trade-surface);
 }
 
+/* 全局盒模型和基础排版，保证移动端布局计算稳定。 */
 * {
   box-sizing: border-box;
 }
@@ -132,6 +135,7 @@ select {
   font: inherit;
 }
 
+/* 应用外壳限制最大宽度，让移动端界面在桌面预览时仍保持手机比例。 */
 .app-shell {
   min-height: 100dvh;
 }
@@ -144,6 +148,7 @@ select {
   padding: 0 12px;
 }
 
+/* 移动端页面基础容器：预留底部导航和安全区空间。 */
 .mobile-page {
   display: grid;
   align-content: start;
@@ -159,6 +164,7 @@ select {
   }
 }
 
+/* 全局提示弹窗正文样式，避免长文本溢出。 */
 .notice-dialog-message {
   margin: 0;
   padding: 8px 24px 22px;
@@ -167,6 +173,7 @@ select {
   overflow-wrap: anywhere;
 }
 
+/* Vant 组件微调：让第三方组件与交易主题的文字、间距和颜色保持一致。 */
 .van-cell-group--inset {
   margin-right: 0;
   margin-left: 0;

@@ -10,11 +10,14 @@ import {
   totalYieldRate,
 } from '../common/grid';
 
+// 合约网格计算模块：在公共网格算法之上补充杠杆、保证金和强平价逻辑。
 export { CONTRACT_SIDE_LONG, CONTRACT_SIDE_SHORT, GRID_MODE_ARITHMETIC, GRID_MODE_GEOMETRIC };
 
+// 计算合约网格的完整结果，调用方需先传入已 normalize 的数值字段。
 export function calculateContractGrid(input) {
   validateContractGridInput(input);
 
+  // 保证金和名义价值是合约网格区别于现货网格的核心指标。
   const margin = input.investment + input.additionalInvestment;
   const notional = input.investment * input.leverage;
   const perGridMargin = input.investment / input.gridCount;
@@ -26,6 +29,7 @@ export function calculateContractGrid(input) {
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
   const gridRatio = input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
 
+  // 先构造结果对象，再补充依赖中间结果的权益、强平和收益率字段。
   const result = {
     name: input.name,
     entryPrice: input.entryPrice,
@@ -54,7 +58,9 @@ export function calculateContractGrid(input) {
     totalYieldRate: 0,
   };
 
+  // 当前权益只包含已经成交网格占用的保证金和浮动盈亏。
   result.currentEquity = result.filledMargin + result.floatingProfitLoss;
+  // 估算网格强平价时，用区间极端价格模拟网格全部触发后的仓位。
   const estimatedGridPosition = estimateGridPosition(input, gridPrices, perGridNotional);
   result.estimatedGridLiquidationPrice = liquidationPrice(
     input.side,
@@ -78,6 +84,7 @@ export function calculateContractGrid(input) {
   return result;
 }
 
+// 将表单字符串显式转换为计算层需要的数字和布尔值。
 export function normalizeInput(rawInput) {
   return {
     name: rawInput.name.trim(),
@@ -95,6 +102,7 @@ export function normalizeInput(rawInput) {
   };
 }
 
+// 合约网格校验覆盖价格区间、网格模式、杠杆和保证金约束。
 function validateContractGridInput(input) {
   if (input.lowerPrice <= 0) throw new Error('下限价格必须大于 0');
   if (input.upperPrice <= input.lowerPrice) throw new Error('上限价格必须大于下限价格');
@@ -112,6 +120,7 @@ function validateContractGridInput(input) {
   }
 }
 
+// 简化强平估算：做多价格下移，做空价格上移，保证金作为可承受亏损预算。
 function liquidationPrice(side, averageEntryPrice, positionNotional, margin) {
   if (positionNotional <= 0) return 0;
   if (side === CONTRACT_SIDE_LONG) {
@@ -123,6 +132,7 @@ function liquidationPrice(side, averageEntryPrice, positionNotional, margin) {
   return 0;
 }
 
+// 用区间低点/高点估算极端情况下的合约仓位，用于展示网格整体风险。
 function estimateGridPosition(input, gridPrices, perGridNotional) {
   const estimatedInput = {
     ...input,
@@ -131,6 +141,7 @@ function estimateGridPosition(input, gridPrices, perGridNotional) {
   return calculateCurrentPosition(estimatedInput, filledPositions(estimatedInput, gridPrices), perGridNotional);
 }
 
+// 合约仓位按每格名义价值累计，均价由名义价值和数量反推。
 function calculateCurrentPosition(input, positions, perGridNotional) {
   const position = {
     notional: 0,

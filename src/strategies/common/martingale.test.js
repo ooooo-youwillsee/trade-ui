@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { calculateMartingale, MARTINGALE_MODE_FUTURES, MARTINGALE_MODE_SPOT, MARTINGALE_SIDE_LONG } from './martingale';
 
+// 马丁算法测试覆盖现货层级、合约风险和资金不足三条核心路径。
 describe('calculateMartingale', () => {
+  // 现货基础输入用于复用构造不同场景，减少测试间参数噪音。
   const spotInput = {
     name: 'spot martingale',
     mode: MARTINGALE_MODE_SPOT,

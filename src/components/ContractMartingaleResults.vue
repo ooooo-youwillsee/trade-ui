@@ -1,4 +1,5 @@
 <script setup>
+// 合约马丁结果组件：展示层级表、强平风险、资金缺口和当前仓位。
 import { computed } from 'vue';
 import {
   AlertTriangle,
@@ -13,6 +14,7 @@ import {
 import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
 import { formatNumber, formatPercent } from '../utils/formatters';
 
+// 结果组件只读 props，所有计算已在策略层完成。
 const props = defineProps({
   activeInput: { type: Object, default: null },
   result: { type: Object, default: null },
@@ -20,6 +22,7 @@ const props = defineProps({
 
 const sideLabel = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? TrendingUp : TrendingDown));
+// 健康状态综合资金缺口和强平距离，用于顶部风险标签。
 const health = computed(() => {
   if (!props.result) return { label: '参数异常', type: 'danger' };
   if (props.result.hasCapitalShortfall) return { label: '资金不足', type: 'danger' };
@@ -60,6 +63,7 @@ const summaryMetrics = computed(() => [
 </script>
 
 <template>
+  <!-- 合约马丁结果：先展示风险概览，再展示逐层补仓计划。 -->
   <div class="results-panel">
     <section class="detail-hero">
       <div class="detail-hero__top">
@@ -174,6 +178,7 @@ const summaryMetrics = computed(() => [
 </template>
 
 <style scoped lang="scss">
+/* 马丁结果布局：指标区和层级列表分离，便于快速判断资金压力。 */
 .results-panel {
   display: grid;
   gap: 12px;

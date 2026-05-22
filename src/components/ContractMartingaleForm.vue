@@ -1,7 +1,9 @@
 <script setup>
+// 合约马丁编辑表单：负责配置层数、倍数、止盈和合约资金参数。
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG, MARTINGALE_SIDE_SHORT } from '../strategies/common/martingale';
 
+// 表单本身不持久化数据，只通过 props/emit 与页面级 store 协作。
 defineProps({
   calculation: { type: Object, required: true },
   form: { type: Object, required: true },
@@ -10,10 +12,12 @@ defineProps({
   selectedId: { type: String, required: true },
 });
 
+// 所有业务动作向上抛出，页面负责确认弹窗、保存结果和路由跳转。
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
 </script>
 
 <template>
+  <!-- 合约马丁表单主体：分为策略基础参数、资金约束和底部操作区。 -->
   <div class="save-page">
     <section class="save-hero">
       <p class="eyebrow">Contract Martingale</p>
@@ -107,6 +111,7 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
 </template>
 
 <style scoped lang="scss">
+/* 马丁表单复用保存页布局，保证与网格编辑体验一致。 */
 .save-page {
   display: grid;
   gap: 12px;

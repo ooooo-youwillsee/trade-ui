@@ -1,10 +1,12 @@
 <script setup>
+// 合约网格结果组件：把计算结果拆成关键指标、风险提示和网格明细展示。
 import { computed } from 'vue';
 import { BarChart3, Boxes, ShieldCheck, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from '../strategies/common/grid';
 import { getHealth } from '../composables/useContractGridStrategies';
 import { formatNumber, formatPercent } from '../utils/formatters';
 
+// activeInput 用于展示输入摘要，result 用于展示计算结果。
 const props = defineProps({
   activeInput: {
     type: Object,
@@ -16,6 +18,7 @@ const props = defineProps({
   },
 });
 
+// 网格价格过多时只展示头尾价格，中间用省略占位保持页面紧凑。
 const gridPreview = computed(() => {
   if (!props.result) return [];
   if (props.result.gridPrices.length <= 16) return props.result.gridPrices;
@@ -26,6 +29,7 @@ const gridPreview = computed(() => {
   ];
 });
 
+// 健康度由强平距离决定，页面只展示 label/tone/distance。
 const health = computed(() => getHealth(props.result, props.activeInput));
 const healthType = computed(() => {
   if (health.value.tone === 'danger') return 'danger';
@@ -86,6 +90,7 @@ const inputRows = computed(() => [
 </script>
 
 <template>
+  <!-- 合约网格结果：先展示风险概览，再展示参数、指标、仓位和网格价格。 -->
   <div class="results-panel">
     <section class="detail-hero">
       <div class="detail-hero__top">
@@ -177,6 +182,7 @@ const inputRows = computed(() => [
 </template>
 
 <style scoped lang="scss">
+/* 结果卡片布局：用紧凑网格承载移动端可扫描的核心指标。 */
 .results-panel {
   display: grid;
   gap: 12px;

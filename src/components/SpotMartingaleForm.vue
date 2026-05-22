@@ -1,7 +1,9 @@
 <script setup>
+// 现货马丁编辑表单：配置补仓层级、触发幅度和资金上限。
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG, MARTINGALE_SIDE_SHORT } from '../strategies/common/martingale';
 
+// form 为响应式草稿，父页面负责保存和删除等副作用。
 defineProps({
   calculation: { type: Object, required: true },
   form: { type: Object, required: true },
@@ -10,10 +12,12 @@ defineProps({
   selectedId: { type: String, required: true },
 });
 
+// 操作事件全部上抛，保持表单组件无路由依赖。
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
 </script>
 
 <template>
+  <!-- 现货马丁表单主体：不展示合约专属的杠杆风险结果。 -->
   <div class="save-page">
     <section class="save-hero">
       <p class="eyebrow">Spot Martingale</p>
@@ -101,6 +105,7 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
 </template>
 
 <style scoped lang="scss">
+/* 保存页布局：操作按钮在移动端保持两列，主按钮独占一行。 */
 .save-page {
   display: grid;
   gap: 12px;

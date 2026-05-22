@@ -1,9 +1,11 @@
 <script setup>
+// 现货马丁结果组件：展示补仓层级、资金占用和止盈目标。
 import { computed } from 'vue';
 import { AlertTriangle, BarChart3, Layers3, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
 import { formatNumber, formatPercent } from '../utils/formatters';
 
+// props 保持只读，组件只负责格式化和视觉呈现。
 const props = defineProps({
   activeInput: { type: Object, default: null },
   result: { type: Object, default: null },
@@ -11,6 +13,7 @@ const props = defineProps({
 
 const sideLabel = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? TrendingUp : TrendingDown));
+// 现货马丁风险主要来自资金不足，因此健康度围绕资金覆盖判断。
 const health = computed(() => {
   if (!props.result) return { label: '参数异常', type: 'danger' };
   if (props.result.hasCapitalShortfall) return { label: '资金不足', type: 'danger' };
@@ -46,6 +49,7 @@ const summaryMetrics = computed(() => [
 </script>
 
 <template>
+  <!-- 现货马丁结果：不展示强平价，重点展示可执行层数和止盈收益。 -->
   <div class="results-panel">
     <section class="detail-hero">
       <div class="detail-hero__top">
@@ -152,6 +156,7 @@ const summaryMetrics = computed(() => [
 </template>
 
 <style scoped lang="scss">
+/* 现货马丁结果布局：层级明细在移动端保持纵向阅读节奏。 */
 .results-panel {
   display: grid;
   gap: 12px;

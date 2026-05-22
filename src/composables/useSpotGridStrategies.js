@@ -2,6 +2,7 @@ import { createGridStrategyStore } from '../strategies/common/useGridStrategySto
 import { calculateSpotGrid, normalizeSpotGridInput } from '../strategies/spot/grid';
 import { defaultSpotGridInput, spotGridPresets } from '../strategies/spot/gridDefaults';
 
+// 现货网格策略 composable：复用公共网格 store，并注入现货计算口径。
 export const useSpotGridStrategies = createGridStrategyStore({
   calculateStrategy,
   defaultInput: defaultSpotGridInput,
@@ -15,6 +16,7 @@ export const useSpotGridStrategies = createGridStrategyStore({
   stripNumericFields: ['lowerPrice', 'upperPrice', 'entryPrice', 'currentPrice', 'gridCount', 'investment'],
 });
 
+// 现货网格计算入口：先规范化表单，再捕获计算校验错误供页面展示。
 export function calculateStrategy(strategy) {
   try {
     const input = normalizeSpotGridInput(strategy);

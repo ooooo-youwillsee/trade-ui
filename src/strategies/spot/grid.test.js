@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { CONTRACT_SIDE_LONG, GRID_MODE_ARITHMETIC } from '../common/grid';
 import { calculateSpotGrid } from './grid';
 
+// 现货网格测试重点覆盖持仓价值计算和输入校验。
 describe('calculateSpotGrid', () => {
+  // 基础输入不含杠杆字段，体现现货网格只按投入金额建仓。
   const validInput = {
     name: 'spot grid',
     lowerPrice: 100,

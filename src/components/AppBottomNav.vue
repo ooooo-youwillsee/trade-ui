@@ -1,4 +1,5 @@
 <script setup>
+// 底部导航组件：只接收当前 tab，具体路由入口由 tabs 配置集中声明。
 defineProps({
   activeTab: {
     type: String,
@@ -6,6 +7,7 @@ defineProps({
   },
 });
 
+// 底部四个主入口与路由 meta.tab 保持同名，方便 App.vue 统一高亮。
 const tabs = [
   { key: 'contract', label: '合约', icon: 'apps-o', to: '/contract' },
   { key: 'spot', label: '现货', icon: 'gold-coin-o', to: '/spot' },
@@ -15,6 +17,7 @@ const tabs = [
 </script>
 
 <template>
+  <!-- 主导航：route 模式让 Vant Tabbar 直接驱动 vue-router 跳转。 -->
   <van-tabbar class="bottom-nav" :model-value="activeTab" route safe-area-inset-bottom>
     <van-tabbar-item v-for="tab in tabs" :key="tab.key" :icon="tab.icon" :name="tab.key" :to="tab.to">
       {{ tab.label }}
@@ -23,6 +26,7 @@ const tabs = [
 </template>
 
 <style scoped lang="scss">
+/* 悬浮底部导航：保留安全区距离，并用半透明背景适配移动端 PWA。 */
 .bottom-nav {
   right: 12px;
   bottom: calc(12px + env(safe-area-inset-bottom));
