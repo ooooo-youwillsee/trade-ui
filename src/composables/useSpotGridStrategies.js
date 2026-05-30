@@ -13,7 +13,15 @@ export const useSpotGridStrategies = createGridStrategyStore({
   presets: spotGridPresets,
   saveMessage: '现货网格已保存',
   storageKey: 'spot-grid-strategies',
-  stripNumericFields: ['lowerPrice', 'upperPrice', 'entryPrice', 'currentPrice', 'gridCount', 'investment'],
+  stripNumericFields: [
+    'lowerPrice',
+    'upperPrice',
+    'entryPrice',
+    'currentPrice',
+    'gridCount',
+    'investment',
+    'positionIncrementValue',
+  ],
 });
 
 // 现货网格计算入口：先规范化表单，再捕获计算校验错误供页面展示。

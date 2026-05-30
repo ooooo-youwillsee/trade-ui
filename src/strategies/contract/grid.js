@@ -1,17 +1,28 @@
 import {
   buildGridPrices,
+  buildGridPositionInvestments,
   CONTRACT_SIDE_LONG,
   CONTRACT_SIDE_SHORT,
   filledPositions,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
   gridProfitRate,
+  gridPositionInvestment,
   limitedGridProfitLoss,
+  POSITION_INCREMENT_DIFFERENCE,
+  POSITION_INCREMENT_RATIO,
   totalYieldRate,
 } from '../common/grid';
 
 // 合约网格计算模块：在公共网格算法之上补充杠杆、保证金和强平价逻辑。
-export { CONTRACT_SIDE_LONG, CONTRACT_SIDE_SHORT, GRID_MODE_ARITHMETIC, GRID_MODE_GEOMETRIC };
+export {
+  CONTRACT_SIDE_LONG,
+  CONTRACT_SIDE_SHORT,
+  GRID_MODE_ARITHMETIC,
+  GRID_MODE_GEOMETRIC,
+  POSITION_INCREMENT_DIFFERENCE,
+  POSITION_INCREMENT_RATIO,
+};
 
 // 计算合约网格的完整结果，调用方需先传入已 normalize 的数值字段。
 export function calculateContractGrid(input) {
@@ -23,9 +34,17 @@ export function calculateContractGrid(input) {
   const perGridMargin = input.investment / input.gridCount;
   const perGridNotional = notional / input.gridCount;
   const gridPrices = buildGridPrices(input.lowerPrice, input.upperPrice, input.gridCount, input.gridMode);
+  const gridMargins = buildGridPositionInvestments(
+    input.investment,
+    input.gridCount,
+    input.side,
+    input.positionIncrementMode,
+    input.positionIncrementValue,
+  );
+  const gridNotionals = gridMargins.map((gridMargin) => gridMargin * input.leverage);
   const filledGridPositions = filledPositions(input, gridPrices);
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
-  const position = calculateCurrentPosition(input, filledGridPositions, perGridNotional);
+  const position = calculateCurrentPosition(input, filledGridPositions, gridPrices, gridNotionals);
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
   const gridRatio = input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
 
@@ -38,12 +57,16 @@ export function calculateContractGrid(input) {
     margin,
     initialMargin: input.investment,
     additionalInvestment: input.additionalInvestment,
+    positionIncrementMode: input.positionIncrementMode,
+    positionIncrementValue: input.positionIncrementValue,
     notional,
     perGridMargin,
     perGridNotional,
+    gridMargins,
+    gridNotionals,
     filledGridCount: filledGridPrices.length,
     filledGridPrices,
-    filledMargin: perGridMargin * filledGridPrices.length + input.additionalInvestment,
+    filledMargin: position.margin + input.additionalInvestment,
     currentNotional: position.notional,
     positionQuantity: position.quantity,
     averageEntryPrice: position.averageEntryPrice,
@@ -61,7 +84,7 @@ export function calculateContractGrid(input) {
   // 当前权益只包含已经成交网格占用的保证金和浮动盈亏。
   result.currentEquity = result.filledMargin + result.floatingProfitLoss;
   // 估算网格强平价时，用区间极端价格模拟网格全部触发后的仓位。
-  const estimatedGridPosition = estimateGridPosition(input, gridPrices, perGridNotional);
+  const estimatedGridPosition = estimateGridPosition(input, gridPrices, gridNotionals);
   result.estimatedGridLiquidationPrice = liquidationPrice(
     input.side,
     estimatedGridPosition.averageEntryPrice,
@@ -99,6 +122,8 @@ export function normalizeInput(rawInput) {
     leverage: Number(rawInput.leverage),
     investment: Number(rawInput.investment),
     additionalInvestment: Number(rawInput.additionalInvestment),
+    positionIncrementMode: rawInput.positionIncrementMode || POSITION_INCREMENT_RATIO,
+    positionIncrementValue: Number(rawInput.positionIncrementValue || 0),
   };
 }
 
@@ -133,17 +158,23 @@ function liquidationPrice(side, averageEntryPrice, positionNotional, margin) {
 }
 
 // 用区间低点/高点估算极端情况下的合约仓位，用于展示网格整体风险。
-function estimateGridPosition(input, gridPrices, perGridNotional) {
+function estimateGridPosition(input, gridPrices, gridNotionals) {
   const estimatedInput = {
     ...input,
     currentPrice: input.side === CONTRACT_SIDE_LONG ? input.lowerPrice : input.upperPrice,
   };
-  return calculateCurrentPosition(estimatedInput, filledPositions(estimatedInput, gridPrices), perGridNotional);
+  return calculateCurrentPosition(
+    estimatedInput,
+    filledPositions(estimatedInput, gridPrices),
+    gridPrices,
+    gridNotionals,
+  );
 }
 
 // 合约仓位按每格名义价值累计，均价由名义价值和数量反推。
-function calculateCurrentPosition(input, positions, perGridNotional) {
+function calculateCurrentPosition(input, positions, gridPrices, gridNotionals) {
   const position = {
+    margin: 0,
     notional: 0,
     quantity: 0,
     averageEntryPrice: 0,
@@ -151,8 +182,10 @@ function calculateCurrentPosition(input, positions, perGridNotional) {
   };
 
   for (const filled of positions) {
-    const quantity = perGridNotional / filled.openPrice;
-    position.notional += perGridNotional;
+    const notional = gridPositionInvestment(filled, gridPrices, gridNotionals);
+    const quantity = notional / filled.openPrice;
+    position.margin += notional / input.leverage;
+    position.notional += notional;
     position.quantity += quantity;
     position.floatingProfitLoss += limitedGridProfitLoss(
       input.currentPrice,

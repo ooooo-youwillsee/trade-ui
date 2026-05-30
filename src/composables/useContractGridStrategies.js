@@ -23,6 +23,7 @@ export const useContractGridStrategies = createGridStrategyStore({
     'leverage',
     'investment',
     'additionalInvestment',
+    'positionIncrementValue',
   ],
 });
 

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CONTRACT_SIDE_LONG, CONTRACT_SIDE_SHORT, GRID_MODE_ARITHMETIC } from '../common/grid';
+import {
+  CONTRACT_SIDE_LONG,
+  CONTRACT_SIDE_SHORT,
+  GRID_MODE_ARITHMETIC,
+  POSITION_INCREMENT_RATIO,
+} from '../common/grid';
 import { calculateContractGrid } from './grid';
 
 // 合约网格测试重点覆盖保证金、名义价值、强平价和做空收益率。
@@ -53,5 +58,30 @@ describe('calculateContractGrid', () => {
     expect(result.liquidationPrice).toBeCloseTo(245);
     expect(result.gridProfitRate).toBe(12.5);
     expect(result.totalYieldRate).toBe(50);
+  });
+
+  it('keeps old inputs compatible when increment fields are omitted', () => {
+    const result = calculateContractGrid(validInput);
+
+    expect(result.positionIncrementMode).toBeUndefined();
+    expect(result.positionIncrementValue).toBeUndefined();
+    expect(result.gridMargins).toEqual([100, 100, 100, 100]);
+    expect(result.filledMargin).toBe(200);
+    expect(result.currentNotional).toBe(500);
+  });
+
+  it('uses the matched grid margin and notional when position increment is enabled', () => {
+    const result = calculateContractGrid({
+      ...validInput,
+      positionIncrementMode: POSITION_INCREMENT_RATIO,
+      positionIncrementValue: 100,
+    });
+
+    expect(result.gridMargins.reduce((sum, amount) => sum + amount, 0)).toBeCloseTo(400);
+    expect(result.gridMargins[0]).toBeGreaterThan(result.gridMargins[3]);
+    expect(result.filledMargin).toBeCloseTo(206.6666666667);
+    expect(result.currentNotional).toBeCloseTo(533.3333333333);
+    expect(result.positionQuantity).toBeCloseTo(4.2666666667);
+    expect(result.liquidationPrice).toBeCloseTo(76.5625);
   });
 });

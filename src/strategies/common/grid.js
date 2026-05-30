@@ -8,6 +8,10 @@ export const CONTRACT_SIDE_SHORT = 'short';
 export const GRID_MODE_ARITHMETIC = 'arithmetic';
 export const GRID_MODE_GEOMETRIC = 'geometric';
 
+// 仓位递增支持按比例和按固定金额差两种模式，默认值为 0 时保持等额分配。
+export const POSITION_INCREMENT_RATIO = 'ratio';
+export const POSITION_INCREMENT_DIFFERENCE = 'difference';
+
 // 根据上下限和网格数量生成包含边界的价格数组，等比模式会强制校准最后一个价格。
 export function buildGridPrices(lowerPrice, upperPrice, gridCount, gridMode) {
   const prices = Array.from({ length: gridCount + 1 }, () => 0);
@@ -23,6 +27,30 @@ export function buildGridPrices(lowerPrice, upperPrice, gridCount, gridMode) {
   }
   prices[prices.length - 1] = upperPrice;
   return prices;
+}
+
+// 按网格方向生成每个价格层对应的计划金额，做多低价更大，做空高价更大。
+export function buildGridPositionInvestments(totalInvestment, gridCount, side, incrementMode, incrementValue) {
+  const normalizedMode = incrementMode || POSITION_INCREMENT_RATIO;
+  const value = Number(incrementValue || 0);
+  if (value < 0) throw new Error('仓位递增值不能小于 0');
+  if (normalizedMode !== POSITION_INCREMENT_RATIO && normalizedMode !== POSITION_INCREMENT_DIFFERENCE) {
+    throw new Error('仓位递增方式必须是比例或差额');
+  }
+  if (value === 0) return Array.from({ length: gridCount }, () => totalInvestment / gridCount);
+
+  const lowToHighAmounts =
+    normalizedMode === POSITION_INCREMENT_RATIO
+      ? buildRatioInvestments(totalInvestment, gridCount, side, value)
+      : buildDifferenceInvestments(totalInvestment, gridCount, side, value);
+  return lowToHighAmounts;
+}
+
+// 根据成交网格价格找到对应价格层的计划金额；边界价格会归入最靠近的一格。
+export function gridPositionInvestment(position, gridPrices, gridInvestments) {
+  const priceIndex = gridPrices.findIndex((price) => price === position.gridPrice);
+  const normalizedIndex = Math.min(Math.max(priceIndex, 0), gridInvestments.length - 1);
+  return gridInvestments[normalizedIndex] || 0;
 }
 
 // 找出当前价格与入场价之间已经触发的网格，并记录每格的开仓价和目标平仓价。
@@ -115,4 +143,27 @@ function shortGridProfitRate(gridStep, gridRatio, gridPrices, gridMode) {
   if (gridMode === GRID_MODE_GEOMETRIC) return (1 - 1 / gridRatio) * 100;
   const highSellPrice = gridPrices[gridPrices.length - 1];
   return highSellPrice === 0 ? 0 : (gridStep / highSellPrice) * 100;
+}
+
+function buildRatioInvestments(totalInvestment, gridCount, side, incrementPercent) {
+  const ratio = 1 + incrementPercent / 100;
+  const weights = Array.from({ length: gridCount }, (_, index) => {
+    const adverseRank = side === CONTRACT_SIDE_LONG ? gridCount - 1 - index : index;
+    return Math.pow(ratio, adverseRank);
+  });
+  return normalizeWeights(totalInvestment, weights);
+}
+
+function buildDifferenceInvestments(totalInvestment, gridCount, side, incrementAmount) {
+  const baseAmount = (totalInvestment - (incrementAmount * gridCount * (gridCount - 1)) / 2) / gridCount;
+  if (baseAmount <= 0) throw new Error('单格递增金额过大，无法在总投资额内分配');
+  return Array.from({ length: gridCount }, (_, index) => {
+    const adverseRank = side === CONTRACT_SIDE_LONG ? gridCount - 1 - index : index;
+    return baseAmount + adverseRank * incrementAmount;
+  });
+}
+
+function normalizeWeights(totalInvestment, weights) {
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  return weights.map((weight) => (totalInvestment * weight) / totalWeight);
 }

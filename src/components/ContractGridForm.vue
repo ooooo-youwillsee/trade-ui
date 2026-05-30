@@ -6,6 +6,8 @@ import {
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
+  POSITION_INCREMENT_DIFFERENCE,
+  POSITION_INCREMENT_RATIO,
 } from '../strategies/common/grid';
 
 // 父页面传入响应式 form 和计算状态，表单只负责展示和触发事件。
@@ -108,6 +110,20 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
       <van-field v-model.number="form.leverage" label="杠杆倍数" type="number" input-align="right" />
       <van-field v-model.number="form.investment" label="初始保证金" type="number" input-align="right" />
       <van-field v-model.number="form.additionalInvestment" label="追加保证金" type="number" input-align="right" />
+      <van-field label="仓位递增方式">
+        <template #input>
+          <van-radio-group v-model="form.positionIncrementMode" direction="horizontal">
+            <van-radio :name="POSITION_INCREMENT_RATIO">比例递增</van-radio>
+            <van-radio :name="POSITION_INCREMENT_DIFFERENCE">差额递增</van-radio>
+          </van-radio-group>
+        </template>
+      </van-field>
+      <van-field
+        v-model.number="form.positionIncrementValue"
+        :label="form.positionIncrementMode === POSITION_INCREMENT_DIFFERENCE ? '单格递增金额' : '单格递增比例(%)'"
+        type="number"
+        input-align="right"
+      />
     </van-cell-group>
 
     <div class="save-actions">

@@ -1,12 +1,15 @@
 import {
   buildGridPrices,
+  buildGridPositionInvestments,
   CONTRACT_SIDE_LONG,
   CONTRACT_SIDE_SHORT,
   filledPositions,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
   gridProfitRate,
+  gridPositionInvestment,
   limitedGridProfitLoss,
+  POSITION_INCREMENT_RATIO,
   totalYieldRate,
 } from '../common/grid';
 
@@ -24,6 +27,8 @@ export function normalizeSpotGridInput(rawInput) {
     gridCount: Number(rawInput.gridCount),
     side: rawInput.side,
     investment: Number(rawInput.investment),
+    positionIncrementMode: rawInput.positionIncrementMode || POSITION_INCREMENT_RATIO,
+    positionIncrementValue: Number(rawInput.positionIncrementValue || 0),
     openOnCreate: Boolean(rawInput.openOnCreate),
   };
 }
@@ -32,12 +37,19 @@ export function normalizeSpotGridInput(rawInput) {
 export function calculateSpotGrid(input) {
   validateSpotGridInput(input);
 
-  // 每格投入金额固定，成交网格数量决定当前实际持仓成本。
+  // 默认等额投入，开启仓位递增后按价格层分配总投入。
   const gridPrices = buildGridPrices(input.lowerPrice, input.upperPrice, input.gridCount, input.gridMode);
   const perGridInvestment = input.investment / input.gridCount;
+  const gridInvestments = buildGridPositionInvestments(
+    input.investment,
+    input.gridCount,
+    input.side,
+    input.positionIncrementMode,
+    input.positionIncrementValue,
+  );
   const filledGridPositions = filledPositions(input, gridPrices);
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
-  const position = calculateCurrentPosition(input, filledGridPositions, perGridInvestment);
+  const position = calculateCurrentPosition(input, filledGridPositions, gridPrices, gridInvestments);
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
   const gridRatio = input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
 
@@ -47,10 +59,13 @@ export function calculateSpotGrid(input) {
     currentPrice: input.currentPrice,
     gridMode: input.gridMode,
     investment: input.investment,
+    positionIncrementMode: input.positionIncrementMode,
+    positionIncrementValue: input.positionIncrementValue,
     perGridInvestment,
+    gridInvestments,
     filledGridCount: filledGridPrices.length,
     filledGridPrices,
-    filledInvestment: perGridInvestment * filledGridPrices.length,
+    filledInvestment: position.cost,
     currentValue: position.currentValue,
     positionQuantity: position.quantity,
     averageEntryPrice: position.averageEntryPrice,
@@ -80,7 +95,7 @@ function validateSpotGridInput(input) {
 }
 
 // 现货仓位以成本和数量累计，当前价值等于成本加受目标价限制后的浮盈浮亏。
-function calculateCurrentPosition(input, positions, perGridInvestment) {
+function calculateCurrentPosition(input, positions, gridPrices, gridInvestments) {
   const position = {
     quantity: 0,
     cost: 0,
@@ -90,9 +105,10 @@ function calculateCurrentPosition(input, positions, perGridInvestment) {
   };
 
   for (const filled of positions) {
-    const quantity = perGridInvestment / filled.openPrice;
+    const investment = gridPositionInvestment(filled, gridPrices, gridInvestments);
+    const quantity = investment / filled.openPrice;
     position.quantity += quantity;
-    position.cost += perGridInvestment;
+    position.cost += investment;
     position.floatingProfitLoss += limitedGridProfitLoss(
       input.currentPrice,
       filled.openPrice,

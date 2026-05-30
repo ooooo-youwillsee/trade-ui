@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildGridPrices,
+  buildGridPositionInvestments,
   CONTRACT_SIDE_LONG,
   CONTRACT_SIDE_SHORT,
   filledPositions,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
   limitedGridProfitLoss,
+  POSITION_INCREMENT_DIFFERENCE,
+  POSITION_INCREMENT_RATIO,
 } from './grid';
 
 // 公共网格算法测试：验证价格序列、成交网格识别和单格盈亏封顶。
@@ -50,6 +53,29 @@ describe('filledPositions', () => {
         gridPrices,
       ),
     ).toEqual([{ gridPrice: 175, openPrice: 175, targetPrice: 150 }]);
+  });
+});
+
+describe('buildGridPositionInvestments', () => {
+  it('keeps equal position sizing when increment value is zero', () => {
+    expect(buildGridPositionInvestments(400, 4, CONTRACT_SIDE_LONG, POSITION_INCREMENT_RATIO, 0)).toEqual([
+      100, 100, 100, 100,
+    ]);
+  });
+
+  it('allocates larger long position sizes to lower prices for ratio mode', () => {
+    const investments = buildGridPositionInvestments(400, 4, CONTRACT_SIDE_LONG, POSITION_INCREMENT_RATIO, 100);
+
+    expect(investments[0]).toBeGreaterThan(investments[1]);
+    expect(investments[1]).toBeGreaterThan(investments[2]);
+    expect(investments.reduce((sum, amount) => sum + amount, 0)).toBeCloseTo(400);
+  });
+
+  it('allocates larger short position sizes to higher prices for difference mode', () => {
+    const investments = buildGridPositionInvestments(400, 4, CONTRACT_SIDE_SHORT, POSITION_INCREMENT_DIFFERENCE, 20);
+
+    expect(investments).toEqual([70, 90, 110, 130]);
+    expect(investments.reduce((sum, amount) => sum + amount, 0)).toBe(400);
   });
 });
 

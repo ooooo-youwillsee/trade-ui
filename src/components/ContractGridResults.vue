@@ -2,7 +2,7 @@
 // 合约网格结果组件：把计算结果拆成关键指标、风险提示和网格明细展示。
 import { computed } from 'vue';
 import { BarChart3, Boxes, ShieldCheck, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
-import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from '../strategies/common/grid';
+import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC, POSITION_INCREMENT_DIFFERENCE } from '../strategies/common/grid';
 import { getHealth } from '../composables/useContractGridStrategies';
 import { formatNumber, formatPercent } from '../utils/formatters';
 
@@ -38,6 +38,12 @@ const healthType = computed(() => {
 });
 const sideLabel = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? TrendingUp : TrendingDown));
+const incrementLabel = computed(() => {
+  if (props.activeInput?.positionIncrementMode === POSITION_INCREMENT_DIFFERENCE) {
+    return `差额递增 ${formatNumber(props.activeInput?.positionIncrementValue ?? 0, 2)}`;
+  }
+  return `比例递增 ${formatPercent(props.activeInput?.positionIncrementValue ?? 0, 2)}`;
+});
 
 const summaryMetrics = computed(() => [
   {
@@ -86,6 +92,7 @@ const inputRows = computed(() => [
   ['杠杆倍数', `${formatNumber(props.activeInput?.leverage ?? 0, 2)}x`],
   ['初始保证金', formatNumber(props.activeInput?.investment ?? 0, 2)],
   ['追加保证金', formatNumber(props.activeInput?.additionalInvestment ?? 0, 2)],
+  ['仓位递增', incrementLabel.value],
 ]);
 </script>
 

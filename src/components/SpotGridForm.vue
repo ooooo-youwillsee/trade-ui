@@ -6,6 +6,8 @@ import {
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
+  POSITION_INCREMENT_DIFFERENCE,
+  POSITION_INCREMENT_RATIO,
 } from '../strategies/common/grid';
 
 // form 来自 store，组件直接使用 v-model 修改草稿。
@@ -87,6 +89,20 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
     <van-cell-group inset title="资金与网格">
       <van-field v-model.number="form.gridCount" label="网格数量" type="number" input-align="right" />
       <van-field v-model.number="form.investment" label="投入金额" type="number" input-align="right" />
+      <van-field label="仓位递增方式">
+        <template #input>
+          <van-radio-group v-model="form.positionIncrementMode" direction="horizontal">
+            <van-radio :name="POSITION_INCREMENT_RATIO">比例递增</van-radio>
+            <van-radio :name="POSITION_INCREMENT_DIFFERENCE">差额递增</van-radio>
+          </van-radio-group>
+        </template>
+      </van-field>
+      <van-field
+        v-model.number="form.positionIncrementValue"
+        :label="form.positionIncrementMode === POSITION_INCREMENT_DIFFERENCE ? '单格递增金额' : '单格递增比例(%)'"
+        type="number"
+        input-align="right"
+      />
     </van-cell-group>
 
     <div class="save-actions">

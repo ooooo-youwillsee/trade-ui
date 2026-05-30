@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CONTRACT_SIDE_LONG, GRID_MODE_ARITHMETIC } from '../common/grid';
+import { CONTRACT_SIDE_LONG, GRID_MODE_ARITHMETIC, POSITION_INCREMENT_RATIO } from '../common/grid';
 import { calculateSpotGrid } from './grid';
 
 // 现货网格测试重点覆盖持仓价值计算和输入校验。
@@ -31,6 +31,29 @@ describe('calculateSpotGrid', () => {
     expect(result.currentEquity).toBe(100);
     expect(result.gridProfitRate).toBe(25);
     expect(result.totalYieldRate).toBe(100);
+  });
+
+  it('keeps old inputs compatible when increment fields are omitted', () => {
+    const result = calculateSpotGrid(validInput);
+
+    expect(result.positionIncrementMode).toBeUndefined();
+    expect(result.positionIncrementValue).toBeUndefined();
+    expect(result.filledInvestment).toBe(100);
+    expect(result.gridInvestments).toEqual([100, 100, 100, 100]);
+  });
+
+  it('uses the matched grid investment when position increment is enabled', () => {
+    const result = calculateSpotGrid({
+      ...validInput,
+      positionIncrementMode: POSITION_INCREMENT_RATIO,
+      positionIncrementValue: 100,
+    });
+
+    expect(result.gridInvestments.reduce((sum, amount) => sum + amount, 0)).toBeCloseTo(400);
+    expect(result.gridInvestments[0]).toBeGreaterThan(result.gridInvestments[3]);
+    expect(result.filledInvestment).toBeCloseTo(106.6666666667);
+    expect(result.positionQuantity).toBeCloseTo(0.8533333333);
+    expect(result.averageEntryPrice).toBe(125);
   });
 
   it('rejects a blank strategy name', () => {
