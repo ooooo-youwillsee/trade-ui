@@ -11,7 +11,7 @@ import {
 } from '../strategies/common/grid';
 
 // 父页面传入响应式 form 和计算状态，表单只负责展示和触发事件。
-defineProps({
+const props = defineProps({
   calculation: {
     type: Object,
     required: true,
@@ -36,6 +36,19 @@ defineProps({
 
 // 事件命名保持业务动作语义，父页面根据当前路由决定具体跳转和提示。
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
+
+const incrementModeActions = [
+  { text: '比例', value: POSITION_INCREMENT_RATIO },
+  { text: '数量', value: POSITION_INCREMENT_DIFFERENCE },
+];
+
+function incrementModeLabel(mode) {
+  return mode === POSITION_INCREMENT_DIFFERENCE ? 'USDT' : '%';
+}
+
+function setIncrementMode(action) {
+  props.form.positionIncrementMode = action.value;
+}
 </script>
 
 <template>
@@ -110,20 +123,17 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
       <van-field v-model.number="form.leverage" label="杠杆倍数" type="number" input-align="right" />
       <van-field v-model.number="form.investment" label="初始保证金" type="number" input-align="right" />
       <van-field v-model.number="form.additionalInvestment" label="追加保证金" type="number" input-align="right" />
-      <van-field label="仓位递增方式">
-        <template #input>
-          <van-radio-group v-model="form.positionIncrementMode" direction="horizontal">
-            <van-radio :name="POSITION_INCREMENT_RATIO">比例递增</van-radio>
-            <van-radio :name="POSITION_INCREMENT_DIFFERENCE">差额递增</van-radio>
-          </van-radio-group>
+      <van-field v-model.number="form.positionIncrementValue" label="单格递增" type="number" input-align="right">
+        <template #button>
+          <van-popover :actions="incrementModeActions" placement="bottom-end" @select="setIncrementMode">
+            <template #reference>
+              <van-button class="field-suffix-button" size="small" plain type="primary">
+                {{ incrementModeLabel(form.positionIncrementMode) }}
+              </van-button>
+            </template>
+          </van-popover>
         </template>
       </van-field>
-      <van-field
-        v-model.number="form.positionIncrementValue"
-        :label="form.positionIncrementMode === POSITION_INCREMENT_DIFFERENCE ? '单格递增金额' : '单格递增比例(%)'"
-        type="number"
-        input-align="right"
-      />
     </van-cell-group>
 
     <div class="save-actions">
@@ -221,5 +231,9 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
   :deep(.van-button:first-child) {
     grid-column: 1 / -1;
   }
+}
+
+.field-suffix-button {
+  min-width: 56px;
 }
 </style>
