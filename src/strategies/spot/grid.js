@@ -49,6 +49,7 @@ export function calculateSpotGrid(input) {
   );
   const filledGridPositions = filledPositions(input, gridPrices);
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
+  const gridOrders = buildGridOrders(gridPrices, gridInvestments, filledGridPrices);
   const position = calculateCurrentPosition(input, filledGridPositions, gridPrices, gridInvestments);
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
   const gridRatio = input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
@@ -63,6 +64,7 @@ export function calculateSpotGrid(input) {
     positionIncrementValue: input.positionIncrementValue,
     perGridInvestment,
     gridInvestments,
+    gridOrders,
     filledGridCount: filledGridPrices.length,
     filledGridPrices,
     filledInvestment: position.cost,
@@ -77,6 +79,17 @@ export function calculateSpotGrid(input) {
     gridProfitRate: gridProfitRate(input.side, gridStep, gridRatio, gridPrices, input.gridMode),
     totalYieldRate: totalYieldRate(input.side, input.lowerPrice, input.upperPrice),
   };
+}
+
+function buildGridOrders(gridPrices, gridInvestments, filledGridPrices) {
+  return gridInvestments.map((investment, index) => {
+    const price = gridPrices[index];
+    return {
+      price,
+      investment,
+      filled: filledGridPrices.includes(price),
+    };
+  });
 }
 
 // 现货网格不涉及杠杆，但仍需要价格区间、网格数和投入金额有效。

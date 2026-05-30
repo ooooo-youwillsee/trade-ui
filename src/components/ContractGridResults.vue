@@ -1,6 +1,6 @@
 <script setup>
 // 合约网格结果组件：把计算结果拆成关键指标、风险提示和网格明细展示。
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { BarChart3, Boxes, ShieldCheck, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC, POSITION_INCREMENT_DIFFERENCE } from '../strategies/common/grid';
 import { getHealth } from '../composables/useContractGridStrategies';
@@ -18,17 +18,7 @@ const props = defineProps({
   },
 });
 
-// 网格价格过多时只展示头尾价格，中间用省略占位保持页面紧凑。
-const gridPreview = computed(() => {
-  if (!props.result) return [];
-  if (props.result.gridPrices.length <= 16) return props.result.gridPrices;
-  return [
-    ...props.result.gridPrices.slice(0, 8),
-    null,
-    ...props.result.gridPrices.slice(props.result.gridPrices.length - 7),
-  ];
-});
-
+const activeGridSections = ref([]);
 // 健康度由强平距离决定，页面只展示 label/tone/distance。
 const health = computed(() => getHealth(props.result, props.activeInput));
 const healthType = computed(() => {
@@ -168,22 +158,33 @@ const inputRows = computed(() => [
       </div>
     </section>
 
-    <section class="detail-card">
-      <div class="section-title">
-        <Boxes :size="18" />
-        <span>网格价格</span>
-        <small>{{ result?.gridPrices.length ?? 0 }} 个价格点</small>
-      </div>
-      <div class="tag-cloud">
-        <van-tag
-          v-for="(price, index) in gridPreview"
-          :key="`${price}-${index}`"
-          :plain="price !== null"
-          :type="result?.filledGridPrices.includes(price) ? 'warning' : 'primary'"
-        >
-          {{ price === null ? '...' : formatNumber(price, 4) }}
-        </van-tag>
-      </div>
+    <section class="detail-card grid-orders-card">
+      <van-collapse v-model="activeGridSections">
+        <van-collapse-item name="grid-orders">
+          <template #title>
+            <div class="section-title collapse-title">
+              <Boxes :size="18" />
+              <span>网格价格</span>
+              <small>{{ result?.gridOrders?.length ?? 0 }} 个挂单</small>
+            </div>
+          </template>
+          <div class="grid-order-list">
+            <div v-for="order in result?.gridOrders ?? []" :key="order.price" class="grid-order-row">
+              <div>
+                <span>挂单价格</span>
+                <strong>{{ formatNumber(order.price, 4) }}</strong>
+              </div>
+              <div>
+                <span>保证金</span>
+                <strong>{{ formatNumber(order.margin, 4) }}</strong>
+              </div>
+              <van-tag :type="order.filled ? 'warning' : 'primary'" round>
+                {{ order.filled ? '已成交' : '未成交' }}
+              </van-tag>
+            </div>
+          </div>
+        </van-collapse-item>
+      </van-collapse>
     </section>
   </div>
 </template>
@@ -399,10 +400,61 @@ const inputRows = computed(() => [
   color: var(--trade-down) !important;
 }
 
-.tag-cloud {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.grid-orders-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.grid-orders-card :deep(.van-cell) {
+  padding: 14px;
+  background: transparent;
+}
+
+.grid-orders-card :deep(.van-collapse-item__content) {
+  padding: 0 14px 14px;
+  background: transparent;
+}
+
+.collapse-title {
+  width: 100%;
+}
+
+.grid-order-list {
+  display: grid;
+  border-top: 1px solid var(--trade-border);
+}
+
+.grid-order-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  border-bottom: 1px solid var(--trade-border);
+  padding: 10px 0;
+}
+
+.grid-order-row:last-child {
+  border-bottom: 0;
+}
+
+.grid-order-row div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.grid-order-row span {
+  color: var(--trade-muted);
+  font-size: var(--trade-font-xs);
+  font-weight: var(--trade-weight-medium);
+}
+
+.grid-order-row strong {
+  color: var(--trade-text);
+  font-family: var(--trade-number-font);
+  font-weight: var(--trade-weight-strong);
+  overflow-wrap: anywhere;
 }
 
 :global(:root[data-theme='dark']) .detail-hero {

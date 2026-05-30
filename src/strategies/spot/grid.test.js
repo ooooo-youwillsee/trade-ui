@@ -56,6 +56,19 @@ describe('calculateSpotGrid', () => {
     expect(result.averageEntryPrice).toBe(125);
   });
 
+  it('builds order rows with price, investment, and filled status', () => {
+    const result = calculateSpotGrid({
+      ...validInput,
+      positionIncrementMode: POSITION_INCREMENT_RATIO,
+      positionIncrementValue: 100,
+    });
+
+    expect(result.gridOrders).toHaveLength(validInput.gridCount);
+    expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
+    expect(result.gridOrders.map((order) => order.investment)).toEqual(result.gridInvestments);
+    expect(result.gridOrders.map((order) => order.filled)).toEqual([false, true, false, false]);
+  });
+
   it('rejects a blank strategy name', () => {
     expect(() => calculateSpotGrid({ ...validInput, name: '' })).toThrow();
   });
