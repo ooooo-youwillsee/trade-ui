@@ -120,6 +120,10 @@ const summaryMetrics = computed(() => [
                 <span>投入金额</span>
                 <strong>{{ formatNumber(order.investment, 4) }}</strong>
               </div>
+              <div>
+                <span>利润率</span>
+                <strong>{{ formatPercent(order.profitRate, 4) }}</strong>
+              </div>
               <van-tag :type="order.filled ? 'warning' : 'primary'" round>
                 {{ order.filled ? '已成交' : '未成交' }}
               </van-tag>
@@ -270,7 +274,7 @@ const summaryMetrics = computed(() => [
 }
 .grid-order-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) auto;
   align-items: center;
   gap: 10px;
   min-height: 56px;

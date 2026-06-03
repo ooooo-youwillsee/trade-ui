@@ -96,5 +96,20 @@ describe('calculateContractGrid', () => {
     expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
     expect(result.gridOrders.map((order) => order.margin)).toEqual(result.gridMargins);
     expect(result.gridOrders.map((order) => order.filled)).toEqual([false, true, false, false]);
+    expect(result.gridOrders[1].profitRate).toBe(20);
+  });
+
+  it('builds short order rows with per-grid profit rates', () => {
+    const result = calculateContractGrid({
+      ...validInput,
+      side: CONTRACT_SIDE_SHORT,
+      entryPrice: 150,
+      currentPrice: 175,
+    });
+
+    expect(result.gridOrders).toHaveLength(validInput.gridCount);
+    expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
+    expect(result.gridOrders.map((order) => order.filled)).toEqual([false, false, false, true]);
+    expect(result.gridOrders[3].profitRate).toBeCloseTo(14.2857142857);
   });
 });

@@ -49,7 +49,7 @@ export function calculateSpotGrid(input) {
   );
   const filledGridPositions = filledPositions(input, gridPrices);
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
-  const gridOrders = buildGridOrders(gridPrices, gridInvestments, filledGridPrices);
+  const gridOrders = buildGridOrders(input.side, gridPrices, gridInvestments, filledGridPrices);
   const position = calculateCurrentPosition(input, filledGridPositions, gridPrices, gridInvestments);
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
   const gridRatio = input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
@@ -81,15 +81,25 @@ export function calculateSpotGrid(input) {
   };
 }
 
-function buildGridOrders(gridPrices, gridInvestments, filledGridPrices) {
+function buildGridOrders(side, gridPrices, gridInvestments, filledGridPrices) {
   return gridInvestments.map((investment, index) => {
     const price = gridPrices[index];
     return {
       price,
       investment,
+      profitRate: gridOrderProfitRate(side, gridPrices, index),
       filled: filledGridPrices.includes(price),
     };
   });
+}
+
+function gridOrderProfitRate(side, gridPrices, index) {
+  const price = gridPrices[index];
+  const targetPrice = side === CONTRACT_SIDE_LONG ? gridPrices[index + 1] : gridPrices[index - 1];
+  if (!price || !targetPrice) return 0;
+  if (side === CONTRACT_SIDE_LONG) return ((targetPrice - price) / price) * 100;
+  if (side === CONTRACT_SIDE_SHORT) return ((price - targetPrice) / price) * 100;
+  return 0;
 }
 
 // 现货网格不涉及杠杆，但仍需要价格区间、网格数和投入金额有效。

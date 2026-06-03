@@ -67,6 +67,9 @@ describe('calculateSpotGrid', () => {
     expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
     expect(result.gridOrders.map((order) => order.investment)).toEqual(result.gridInvestments);
     expect(result.gridOrders.map((order) => order.filled)).toEqual([false, true, false, false]);
+    expect(result.gridOrders.map((order) => order.profitRate)).toEqual([
+      25, 20, 16.666666666666664, 14.285714285714285,
+    ]);
   });
 
   it('rejects a blank strategy name', () => {

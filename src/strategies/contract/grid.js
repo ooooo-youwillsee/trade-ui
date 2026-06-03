@@ -44,7 +44,7 @@ export function calculateContractGrid(input) {
   const gridNotionals = gridMargins.map((gridMargin) => gridMargin * input.leverage);
   const filledGridPositions = filledPositions(input, gridPrices);
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
-  const gridOrders = buildGridOrders(gridPrices, gridMargins, filledGridPrices);
+  const gridOrders = buildGridOrders(input.side, gridPrices, gridMargins, filledGridPrices);
   const position = calculateCurrentPosition(input, filledGridPositions, gridPrices, gridNotionals);
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
   const gridRatio = input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
@@ -109,15 +109,25 @@ export function calculateContractGrid(input) {
   return result;
 }
 
-function buildGridOrders(gridPrices, gridMargins, filledGridPrices) {
+function buildGridOrders(side, gridPrices, gridMargins, filledGridPrices) {
   return gridMargins.map((margin, index) => {
     const price = gridPrices[index];
     return {
       price,
       margin,
+      profitRate: gridOrderProfitRate(side, gridPrices, index),
       filled: filledGridPrices.includes(price),
     };
   });
+}
+
+function gridOrderProfitRate(side, gridPrices, index) {
+  const price = gridPrices[index];
+  const targetPrice = side === CONTRACT_SIDE_LONG ? gridPrices[index + 1] : gridPrices[index - 1];
+  if (!price || !targetPrice) return 0;
+  if (side === CONTRACT_SIDE_LONG) return ((targetPrice - price) / price) * 100;
+  if (side === CONTRACT_SIDE_SHORT) return ((price - targetPrice) / price) * 100;
+  return 0;
 }
 
 // 将表单字符串显式转换为计算层需要的数字和布尔值。
