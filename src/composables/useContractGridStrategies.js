@@ -1,5 +1,10 @@
 import { createGridStrategyStore } from '../strategies/common/useGridStrategyStoreFactory';
-import { calculateContractGrid, CONTRACT_SIDE_LONG, normalizeInput } from '../strategies/contract/grid';
+import {
+  calculateContractGrid,
+  CONTRACT_SIDE_LONG,
+  CONTRACT_SIDE_NEUTRAL,
+  normalizeInput,
+} from '../strategies/contract/grid';
 import { contractGridPresets, defaultContractGridInput } from '../strategies/contract/gridDefaults';
 
 // 合约网格策略 composable：注入合约网格计算、默认参数和本地存储 key。
@@ -59,9 +64,11 @@ export function getHealth(strategyResult, input) {
   if (liquidation === 0 || current === 0) return { label: '未形成仓位', tone: 'muted', distance: 0 };
 
   const distance =
-    input.side === CONTRACT_SIDE_LONG
-      ? ((current - liquidation) / current) * 100
-      : ((liquidation - current) / current) * 100;
+    input.side === CONTRACT_SIDE_NEUTRAL
+      ? (Math.abs(current - liquidation) / current) * 100
+      : input.side === CONTRACT_SIDE_LONG
+        ? ((current - liquidation) / current) * 100
+        : ((liquidation - current) / current) * 100;
 
   if (distance < 8) return { label: '强平缓冲偏窄', tone: 'danger', distance };
   if (distance < 20) return { label: '强平缓冲一般', tone: 'warning', distance };

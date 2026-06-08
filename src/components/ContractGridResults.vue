@@ -1,8 +1,22 @@
 <script setup>
 // 合约网格结果组件：把计算结果拆成关键指标、风险提示和网格明细展示。
 import { computed, ref } from 'vue';
-import { BarChart3, Boxes, ShieldCheck, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
-import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC, POSITION_INCREMENT_DIFFERENCE } from '../strategies/common/grid';
+import {
+  ArrowLeftRight,
+  BarChart3,
+  Boxes,
+  ShieldCheck,
+  SlidersHorizontal,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from '@lucide/vue';
+import {
+  CONTRACT_SIDE_LONG,
+  CONTRACT_SIDE_NEUTRAL,
+  GRID_MODE_GEOMETRIC,
+  POSITION_INCREMENT_DIFFERENCE,
+} from '../strategies/common/grid';
 import { getHealth } from '../composables/useContractGridStrategies';
 import { formatNumber, formatPercent } from '../utils/formatters';
 
@@ -26,8 +40,12 @@ const healthType = computed(() => {
   if (health.value.tone === 'warning') return 'warning';
   return 'success';
 });
-const sideLabel = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? '做多' : '做空'));
-const sideIcon = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? TrendingUp : TrendingDown));
+const isNeutral = computed(() => props.activeInput?.side === CONTRACT_SIDE_NEUTRAL);
+const sideLabel = computed(() => sideText(props.activeInput?.side));
+const sideIcon = computed(() => {
+  if (isNeutral.value) return ArrowLeftRight;
+  return props.activeInput?.side === CONTRACT_SIDE_LONG ? TrendingUp : TrendingDown;
+});
 const incrementLabel = computed(() => {
   if (props.activeInput?.positionIncrementMode === POSITION_INCREMENT_DIFFERENCE) {
     return `差额递增 ${formatNumber(props.activeInput?.positionIncrementValue ?? 0, 2)}`;
@@ -69,9 +87,17 @@ const positionRows = computed(() => [
   ['持仓数量', formatNumber(props.result?.positionQuantity ?? 0, 8)],
   ['平均入场价', formatNumber(props.result?.averageEntryPrice ?? 0, 4)],
 ]);
+const neutralLegRows = computed(() => [
+  ['多腿强平价', formatNumber(props.result?.longLeg?.liquidationPrice ?? 0, 4)],
+  ['空腿强平价', formatNumber(props.result?.shortLeg?.liquidationPrice ?? 0, 4)],
+  ['多腿名义仓位', formatNumber(props.result?.longLeg?.currentNotional ?? 0, 4)],
+  ['空腿名义仓位', formatNumber(props.result?.shortLeg?.currentNotional ?? 0, 4)],
+  ['多腿浮盈亏', formatNumber(props.result?.longLeg?.floatingProfitLoss ?? 0, 4)],
+  ['空腿浮盈亏', formatNumber(props.result?.shortLeg?.floatingProfitLoss ?? 0, 4)],
+]);
 const inputRows = computed(() => [
   ['策略名称', props.activeInput?.name || '-'],
-  ['方向', props.activeInput?.side === CONTRACT_SIDE_LONG ? '做多' : '做空'],
+  ['方向', sideText(props.activeInput?.side)],
   ['网格模式', props.activeInput?.gridMode === GRID_MODE_GEOMETRIC ? '等比' : '等差'],
   ['创建时建仓', props.activeInput?.openOnCreate ? '是' : '否'],
   ['下限价格', formatNumber(props.activeInput?.lowerPrice ?? 0, 4)],
@@ -84,6 +110,18 @@ const inputRows = computed(() => [
   ['追加保证金', formatNumber(props.activeInput?.additionalInvestment ?? 0, 2)],
   ['仓位递增', incrementLabel.value],
 ]);
+
+// 将合约网格方向值转换成详情页可读文案，中性模式单独展示。
+function sideText(side) {
+  if (side === CONTRACT_SIDE_NEUTRAL) return '中性';
+  return side === CONTRACT_SIDE_LONG ? '做多' : '做空';
+}
+
+// 按方向选择 Vant 标签颜色，避免中性模式被误标为做多或做空。
+function sideTagType(side) {
+  if (side === CONTRACT_SIDE_NEUTRAL) return 'primary';
+  return side === CONTRACT_SIDE_LONG ? 'success' : 'danger';
+}
 </script>
 
 <template>
@@ -130,6 +168,19 @@ const inputRows = computed(() => [
           <span>{{ metric.label }}</span>
           <strong :class="{ primary: metric.primary }">{{ metric.value }}</strong>
         </article>
+      </div>
+    </section>
+
+    <section v-if="isNeutral" class="detail-card">
+      <div class="section-title">
+        <ArrowLeftRight :size="18" />
+        <span>双腿风险</span>
+      </div>
+      <div class="input-grid">
+        <div v-for="[label, value] in neutralLegRows" :key="label" class="input-item">
+          <span>{{ label }}</span>
+          <strong>{{ value }}</strong>
+        </div>
       </div>
     </section>
 
@@ -182,6 +233,7 @@ const inputRows = computed(() => [
                 <span>利润率</span>
                 <strong>{{ formatPercent(order.profitRate, 4) }}</strong>
               </div>
+              <van-tag :type="sideTagType(order.side)" round>{{ sideText(order.side) }}</van-tag>
               <van-tag :type="order.filled ? 'warning' : 'primary'" round>
                 {{ order.filled ? '已成交' : '未成交' }}
               </van-tag>
@@ -430,7 +482,7 @@ const inputRows = computed(() => [
 
 .grid-order-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) auto;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) auto auto;
   align-items: center;
   gap: 10px;
   min-height: 56px;

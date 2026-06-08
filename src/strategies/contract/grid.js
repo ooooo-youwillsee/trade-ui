@@ -2,6 +2,7 @@ import {
   buildGridPrices,
   buildGridPositionInvestments,
   CONTRACT_SIDE_LONG,
+  CONTRACT_SIDE_NEUTRAL,
   CONTRACT_SIDE_SHORT,
   filledPositions,
   GRID_MODE_ARITHMETIC,
@@ -17,6 +18,7 @@ import {
 // 合约网格计算模块：在公共网格算法之上补充杠杆、保证金和强平价逻辑。
 export {
   CONTRACT_SIDE_LONG,
+  CONTRACT_SIDE_NEUTRAL,
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
@@ -34,18 +36,14 @@ export function calculateContractGrid(input) {
   const perGridMargin = input.investment / input.gridCount;
   const perGridNotional = notional / input.gridCount;
   const gridPrices = buildGridPrices(input.lowerPrice, input.upperPrice, input.gridCount, input.gridMode);
-  const gridMargins = buildGridPositionInvestments(
-    input.investment,
-    input.gridCount,
-    input.side,
-    input.positionIncrementMode,
-    input.positionIncrementValue,
-  );
+  const gridMargins = buildContractGridMargins(input, gridPrices);
   const gridNotionals = gridMargins.map((gridMargin) => gridMargin * input.leverage);
-  const filledGridPositions = filledPositions(input, gridPrices);
+  const filledGridPositions = contractFilledPositions(input, gridPrices);
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
-  const gridOrders = buildGridOrders(input.side, gridPrices, gridMargins, filledGridPrices);
+  const gridOrders = buildGridOrders(input.side, input.entryPrice, gridPrices, gridMargins, filledGridPrices);
   const position = calculateCurrentPosition(input, filledGridPositions, gridPrices, gridNotionals);
+  const longLeg = buildContractLeg(input, CONTRACT_SIDE_LONG, filledGridPositions, gridPrices, gridNotionals);
+  const shortLeg = buildContractLeg(input, CONTRACT_SIDE_SHORT, filledGridPositions, gridPrices, gridNotionals);
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
   const gridRatio = input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
 
@@ -79,6 +77,8 @@ export function calculateContractGrid(input) {
     gridPrices,
     gridStep,
     gridRatio,
+    longLeg,
+    shortLeg,
     gridProfitRate: 0,
     totalYieldRate: 0,
   };
@@ -87,38 +87,134 @@ export function calculateContractGrid(input) {
   result.currentEquity = result.filledMargin + result.floatingProfitLoss;
   // 估算网格强平价时，用区间极端价格模拟网格全部触发后的仓位。
   const estimatedGridPosition = estimateGridPosition(input, gridPrices, gridNotionals);
-  result.estimatedGridLiquidationPrice = liquidationPrice(
-    input.side,
-    estimatedGridPosition.averageEntryPrice,
-    estimatedGridPosition.notional,
-    result.margin,
-  );
-  result.gridProfitRate = gridProfitRate(input.side, gridStep, gridRatio, gridPrices, input.gridMode);
-  result.totalYieldRate = totalYieldRate(input.side, input.lowerPrice, input.upperPrice);
+  result.estimatedGridLiquidationPrice = estimatedLiquidationPrice(input, result, estimatedGridPosition);
+  result.gridProfitRate = contractGridProfitRate(input.side, gridStep, gridRatio, gridPrices, input.gridMode);
+  result.totalYieldRate = contractTotalYieldRate(input.side, input.lowerPrice, input.upperPrice);
 
   if (result.currentNotional === 0) {
     return result;
   }
 
-  result.liquidationPrice = liquidationPrice(
-    input.side,
-    result.averageEntryPrice,
-    result.currentNotional,
-    result.filledMargin,
-  );
+  result.liquidationPrice =
+    input.side === CONTRACT_SIDE_NEUTRAL
+      ? nearestLiquidationPrice(input.currentPrice, result.longLeg.liquidationPrice, result.shortLeg.liquidationPrice)
+      : liquidationPrice(input.side, result.averageEntryPrice, result.currentNotional, result.filledMargin);
   return result;
 }
 
-function buildGridOrders(side, gridPrices, gridMargins, filledGridPrices) {
+// 中性网格需要按价格方向选择仓位权重：入场价下方沿用多头分配，上方沿用空头分配。
+function buildContractGridMargins(input, gridPrices) {
+  if (input.side !== CONTRACT_SIDE_NEUTRAL) {
+    return buildGridPositionInvestments(
+      input.investment,
+      input.gridCount,
+      input.side,
+      input.positionIncrementMode,
+      input.positionIncrementValue,
+    );
+  }
+
+  const longMargins = buildGridPositionInvestments(
+    input.investment,
+    input.gridCount,
+    CONTRACT_SIDE_LONG,
+    input.positionIncrementMode,
+    input.positionIncrementValue,
+  );
+  const shortMargins = buildGridPositionInvestments(
+    input.investment,
+    input.gridCount,
+    CONTRACT_SIDE_SHORT,
+    input.positionIncrementMode,
+    input.positionIncrementValue,
+  );
+
+  return Array.from({ length: input.gridCount }, (_, index) => {
+    const price = gridPrices[index];
+    return price > input.entryPrice ? shortMargins[index] : longMargins[index];
+  });
+}
+
+// 为合约网格成交仓位补充 side 字段，中性模式会同时合并多腿和空腿成交结果。
+function contractFilledPositions(input, gridPrices) {
+  if (input.side !== CONTRACT_SIDE_NEUTRAL) {
+    return filledPositions(input, gridPrices).map((position) => ({ ...position, side: input.side }));
+  }
+
+  const longPositions = filledPositions({ ...input, side: CONTRACT_SIDE_LONG }, gridPrices).map((position) => ({
+    ...position,
+    side: CONTRACT_SIDE_LONG,
+  }));
+  const shortPositions = filledPositions({ ...input, side: CONTRACT_SIDE_SHORT }, gridPrices).map((position) => ({
+    ...position,
+    side: CONTRACT_SIDE_SHORT,
+  }));
+  return [...longPositions, ...shortPositions].sort((left, right) => left.gridPrice - right.gridPrice);
+}
+
+// 从中性网格的混合仓位中提取单条腿，用于详情页展示独立强平价、仓位和浮盈亏。
+function buildContractLeg(input, side, positions, gridPrices, gridNotionals) {
+  const legPositions = positions.filter((position) => position.side === side);
+  const position = calculateCurrentPosition({ ...input, side }, legPositions, gridPrices, gridNotionals);
+  const additionalMargin = legAdditionalMargin(
+    side,
+    input.additionalInvestment,
+    input.leverage,
+    positions,
+    gridPrices,
+    gridNotionals,
+  );
+  const filledMargin = position.margin + additionalMargin;
+  return {
+    side,
+    filledGridCount: legPositions.length,
+    filledGridPrices: legPositions.map((position) => position.gridPrice),
+    filledMargin,
+    currentNotional: position.notional,
+    positionQuantity: position.quantity,
+    averageEntryPrice: position.averageEntryPrice,
+    floatingProfitLoss: position.floatingProfitLoss,
+    currentEquity: filledMargin + position.floatingProfitLoss,
+    liquidationPrice: liquidationPrice(side, position.averageEntryPrice, position.notional, filledMargin),
+  };
+}
+
+// 追加保证金按两条腿当前已占用保证金比例分摊，未形成仓位时两边均分。
+function legAdditionalMargin(side, additionalInvestment, leverage, positions, gridPrices, gridNotionals) {
+  if (additionalInvestment <= 0) return 0;
+  const longMargin = legUsedMargin(CONTRACT_SIDE_LONG, positions, gridPrices, gridNotionals, leverage);
+  const shortMargin = legUsedMargin(CONTRACT_SIDE_SHORT, positions, gridPrices, gridNotionals, leverage);
+  const totalMargin = longMargin + shortMargin;
+  if (totalMargin === 0) return additionalInvestment / 2;
+  return (additionalInvestment * (side === CONTRACT_SIDE_LONG ? longMargin : shortMargin)) / totalMargin;
+}
+
+// 统计指定腿已成交网格实际占用的保证金，用于追加保证金比例分配。
+function legUsedMargin(side, positions, gridPrices, gridNotionals, leverage) {
+  return positions
+    .filter((position) => position.side === side)
+    .reduce((sum, position) => sum + gridPositionInvestment(position, gridPrices, gridNotionals) / leverage, 0);
+}
+
+// 构造挂单展示行，中性模式会把每格标记为做多腿或做空腿。
+function buildGridOrders(side, entryPrice, gridPrices, gridMargins, filledGridPrices) {
   return gridMargins.map((margin, index) => {
     const price = gridPrices[index];
+    const orderSide = gridOrderSide(side, entryPrice, price);
     return {
       price,
       margin,
-      profitRate: gridOrderProfitRate(side, gridPrices, index),
+      side: orderSide,
+      profitRate: gridOrderProfitRate(orderSide, gridPrices, index),
       filled: filledGridPrices.includes(price),
     };
   });
+}
+
+// 中性挂单按入场价分界：下方按做多腿处理，上方按做空腿处理。
+function gridOrderSide(side, entryPrice, price) {
+  if (side !== CONTRACT_SIDE_NEUTRAL) return side;
+  return price > entryPrice ? CONTRACT_SIDE_SHORT : CONTRACT_SIDE_LONG;
 }
 
 function gridOrderProfitRate(side, gridPrices, index) {
@@ -141,7 +237,7 @@ export function normalizeInput(rawInput) {
     openOnCreate: Boolean(rawInput.openOnCreate),
     gridMode: rawInput.gridMode,
     gridCount: Number(rawInput.gridCount),
-    side: rawInput.side,
+    side: rawInput.side || CONTRACT_SIDE_LONG,
     leverage: Number(rawInput.leverage),
     investment: Number(rawInput.investment),
     additionalInvestment: Number(rawInput.additionalInvestment),
@@ -163,7 +259,7 @@ function validateContractGridInput(input) {
   if (input.leverage <= 0) throw new Error('杠杆倍数必须大于 0');
   if (input.investment <= 0) throw new Error('初始保证金必须大于 0');
   if (input.additionalInvestment < 0) throw new Error('追加保证金不能小于 0');
-  if (input.side !== CONTRACT_SIDE_LONG && input.side !== CONTRACT_SIDE_SHORT) {
+  if (input.side !== CONTRACT_SIDE_LONG && input.side !== CONTRACT_SIDE_SHORT && input.side !== CONTRACT_SIDE_NEUTRAL) {
     throw new Error('方向必须是做多或做空');
   }
 }
@@ -181,6 +277,50 @@ function liquidationPrice(side, averageEntryPrice, positionNotional, margin) {
 }
 
 // 用区间低点/高点估算极端情况下的合约仓位，用于展示网格整体风险。
+// 列表兼容字段只保留一个强平价，中性模式取距离当前价最近的一侧风险。
+function estimatedLiquidationPrice(input, result, estimatedGridPosition) {
+  if (input.side === CONTRACT_SIDE_NEUTRAL) {
+    return nearestLiquidationPrice(
+      input.currentPrice,
+      result.longLeg.liquidationPrice,
+      result.shortLeg.liquidationPrice,
+    );
+  }
+  return liquidationPrice(
+    input.side,
+    estimatedGridPosition.averageEntryPrice,
+    estimatedGridPosition.notional,
+    result.margin,
+  );
+}
+
+// 在多腿和空腿强平价之间选择离当前价更近的风险价格。
+function nearestLiquidationPrice(currentPrice, longLiquidationPrice, shortLiquidationPrice) {
+  if (!longLiquidationPrice) return shortLiquidationPrice || 0;
+  if (!shortLiquidationPrice) return longLiquidationPrice || 0;
+  return Math.abs(currentPrice - longLiquidationPrice) <= Math.abs(shortLiquidationPrice - currentPrice)
+    ? longLiquidationPrice
+    : shortLiquidationPrice;
+}
+
+// 中性网格的单格收益率取多空两侧中更保守的一侧，避免列表指标过度乐观。
+function contractGridProfitRate(side, gridStep, gridRatio, gridPrices, gridMode) {
+  if (side !== CONTRACT_SIDE_NEUTRAL) return gridProfitRate(side, gridStep, gridRatio, gridPrices, gridMode);
+  return Math.min(
+    gridProfitRate(CONTRACT_SIDE_LONG, gridStep, gridRatio, gridPrices, gridMode),
+    gridProfitRate(CONTRACT_SIDE_SHORT, gridStep, gridRatio, gridPrices, gridMode),
+  );
+}
+
+// 中性网格的区间收益率同样取多空两侧中更保守的一侧。
+function contractTotalYieldRate(side, lowerPrice, upperPrice) {
+  if (side !== CONTRACT_SIDE_NEUTRAL) return totalYieldRate(side, lowerPrice, upperPrice);
+  return Math.min(
+    totalYieldRate(CONTRACT_SIDE_LONG, lowerPrice, upperPrice),
+    totalYieldRate(CONTRACT_SIDE_SHORT, lowerPrice, upperPrice),
+  );
+}
+
 function estimateGridPosition(input, gridPrices, gridNotionals) {
   const estimatedInput = {
     ...input,
@@ -207,6 +347,7 @@ function calculateCurrentPosition(input, positions, gridPrices, gridNotionals) {
   for (const filled of positions) {
     const notional = gridPositionInvestment(filled, gridPrices, gridNotionals);
     const quantity = notional / filled.openPrice;
+    const side = filled.side || input.side;
     position.margin += notional / input.leverage;
     position.notional += notional;
     position.quantity += quantity;
@@ -215,7 +356,7 @@ function calculateCurrentPosition(input, positions, gridPrices, gridNotionals) {
       filled.openPrice,
       filled.targetPrice,
       quantity,
-      input.side,
+      side,
     );
   }
 

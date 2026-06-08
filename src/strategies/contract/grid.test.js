@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CONTRACT_SIDE_LONG,
+  CONTRACT_SIDE_NEUTRAL,
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
   POSITION_INCREMENT_RATIO,
@@ -111,5 +112,94 @@ describe('calculateContractGrid', () => {
     expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
     expect(result.gridOrders.map((order) => order.filled)).toEqual([false, false, false, true]);
     expect(result.gridOrders[3].profitRate).toBeCloseTo(14.2857142857);
+  });
+
+  it('fills the long leg below entry price for a neutral grid', () => {
+    const result = calculateContractGrid({
+      ...validInput,
+      side: CONTRACT_SIDE_NEUTRAL,
+      currentPrice: 125,
+      openOnCreate: false,
+    });
+
+    expect(result.filledGridPrices).toEqual([125]);
+    expect(result.longLeg.filledGridPrices).toEqual([125]);
+    expect(result.shortLeg.filledGridPrices).toEqual([]);
+    expect(result.longLeg.currentNotional).toBe(500);
+    expect(result.shortLeg.currentNotional).toBe(0);
+    expect(result.currentNotional).toBe(500);
+    expect(result.floatingProfitLoss).toBe(0);
+    expect(result.currentEquity).toBe(200);
+    expect(result.gridOrders[1].side).toBe(CONTRACT_SIDE_LONG);
+  });
+
+  it('fills the short leg above entry price for a neutral grid', () => {
+    const result = calculateContractGrid({
+      ...validInput,
+      side: CONTRACT_SIDE_NEUTRAL,
+      currentPrice: 175,
+      openOnCreate: false,
+    });
+
+    expect(result.filledGridPrices).toEqual([175]);
+    expect(result.longLeg.filledGridPrices).toEqual([]);
+    expect(result.shortLeg.filledGridPrices).toEqual([175]);
+    expect(result.shortLeg.currentNotional).toBe(500);
+    expect(result.averageEntryPrice).toBe(175);
+    expect(result.liquidationPrice).toBeCloseTo(245);
+    expect(result.gridOrders[3].side).toBe(CONTRACT_SIDE_SHORT);
+  });
+
+  it('opens both neutral legs on create and aggregates leg totals', () => {
+    const result = calculateContractGrid({
+      ...validInput,
+      side: CONTRACT_SIDE_NEUTRAL,
+      currentPrice: 150,
+      openOnCreate: true,
+    });
+
+    expect(result.longLeg.filledGridPrices).toEqual([175, 200]);
+    expect(result.shortLeg.filledGridPrices).toEqual([100, 125]);
+    expect(result.filledGridCount).toBe(4);
+    expect(result.currentNotional).toBe(result.longLeg.currentNotional + result.shortLeg.currentNotional);
+    expect(result.floatingProfitLoss).toBeCloseTo(
+      result.longLeg.floatingProfitLoss + result.shortLeg.floatingProfitLoss,
+    );
+    expect(result.currentEquity).toBeCloseTo(result.filledMargin + result.floatingProfitLoss);
+    expect(result.longLeg.liquidationPrice).toBeGreaterThan(0);
+    expect(result.shortLeg.liquidationPrice).toBeGreaterThan(0);
+  });
+
+  it('uses conservative neutral rates and tags each grid order with its leg side', () => {
+    const result = calculateContractGrid({
+      ...validInput,
+      side: CONTRACT_SIDE_NEUTRAL,
+      currentPrice: 150,
+      openOnCreate: true,
+    });
+
+    expect(result.gridProfitRate).toBe(12.5);
+    expect(result.totalYieldRate).toBe(50);
+    expect(result.gridOrders.map((order) => order.side)).toEqual([
+      CONTRACT_SIDE_LONG,
+      CONTRACT_SIDE_LONG,
+      CONTRACT_SIDE_LONG,
+      CONTRACT_SIDE_SHORT,
+    ]);
+    expect(result.gridOrders.map((order) => order.profitRate)).toEqual([
+      25, 20, 16.666666666666664, 14.285714285714285,
+    ]);
+  });
+
+  it('chooses the nearest neutral liquidation price for compatibility fields', () => {
+    const result = calculateContractGrid({
+      ...validInput,
+      side: CONTRACT_SIDE_NEUTRAL,
+      currentPrice: 150,
+      openOnCreate: true,
+    });
+
+    expect(result.estimatedGridLiquidationPrice).toBe(result.longLeg.liquidationPrice);
+    expect(result.liquidationPrice).toBe(result.longLeg.liquidationPrice);
   });
 });

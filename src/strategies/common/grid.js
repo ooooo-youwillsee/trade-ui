@@ -2,6 +2,7 @@
 
 // 合约和现货网格共用同一套方向值，便于表单、列表和计算模块统一判断。
 export const CONTRACT_SIDE_LONG = 'long';
+export const CONTRACT_SIDE_NEUTRAL = 'neutral';
 export const CONTRACT_SIDE_SHORT = 'short';
 
 // 网格价格支持等差和等比两种模式，计算结果会用于仓位、收益和展示。

@@ -3,6 +3,7 @@
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
 import {
   CONTRACT_SIDE_LONG,
+  CONTRACT_SIDE_NEUTRAL,
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
@@ -93,6 +94,7 @@ function setIncrementMode(action) {
           <van-radio-group v-model="form.side" direction="horizontal">
             <van-radio :name="CONTRACT_SIDE_LONG">做多</van-radio>
             <van-radio :name="CONTRACT_SIDE_SHORT">做空</van-radio>
+            <van-radio :name="CONTRACT_SIDE_NEUTRAL">中性</van-radio>
           </van-radio-group>
         </template>
       </van-field>

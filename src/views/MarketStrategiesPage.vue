@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog } from 'vant';
 import { Boxes, Flame, Trash2, TrendingDown, TrendingUp } from '@lucide/vue';
-import { CONTRACT_SIDE_LONG } from '../strategies/common/grid';
+import { CONTRACT_SIDE_LONG, CONTRACT_SIDE_NEUTRAL } from '../strategies/common/grid';
 import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
 import { useContractMartingaleStrategies } from '../composables/useContractMartingaleStrategies';
 import { useContractGridStrategies } from '../composables/useContractGridStrategies';
@@ -94,7 +94,9 @@ function contractGridCard(item) {
     name: strategy.name,
     typeLabel: '合约网格',
     icon: Boxes,
-    sideLong: strategy.side === CONTRACT_SIDE_LONG,
+    sideIcon: contractGridSideIcon(strategy.side),
+    sideLabel: contractGridSideLabel(strategy.side),
+    sideType: contractGridSideType(strategy.side),
     detailPath: `/contract/grid/${strategy.id}`,
     editPath: `/contract/grid/${strategy.id}/edit`,
     remove: () => contractGridStore.deleteStrategy(strategy.id),
@@ -113,6 +115,24 @@ function contractGridCard(item) {
 }
 
 // 现货网格卡片展示均价、单格收益和浮动盈亏，避免出现合约风险字段。
+// 合约网格列表卡片方向图标：中性模式不使用涨跌图标，避免暗示单边方向。
+function contractGridSideIcon(side) {
+  if (side === CONTRACT_SIDE_NEUTRAL) return null;
+  return side === CONTRACT_SIDE_LONG ? TrendingUp : TrendingDown;
+}
+
+// 合约网格列表卡片方向文案，兼容做多、做空和中性三种方向。
+function contractGridSideLabel(side) {
+  if (side === CONTRACT_SIDE_NEUTRAL) return '中性';
+  return side === CONTRACT_SIDE_LONG ? '做多' : '做空';
+}
+
+// 合约网格列表卡片方向标签颜色，中性使用主色标签。
+function contractGridSideType(side) {
+  if (side === CONTRACT_SIDE_NEUTRAL) return 'primary';
+  return side === CONTRACT_SIDE_LONG ? 'success' : 'danger';
+}
+
 function spotGridCard(item) {
   const { strategy, calculation } = item;
   return {
@@ -121,7 +141,9 @@ function spotGridCard(item) {
     name: strategy.name,
     typeLabel: '现货网格',
     icon: Boxes,
-    sideLong: strategy.side === CONTRACT_SIDE_LONG,
+    sideIcon: strategy.side === CONTRACT_SIDE_LONG ? TrendingUp : TrendingDown,
+    sideLabel: strategy.side === CONTRACT_SIDE_LONG ? '做多' : '做空',
+    sideType: strategy.side === CONTRACT_SIDE_LONG ? 'success' : 'danger',
     detailPath: `/spot/grid/${strategy.id}`,
     editPath: `/spot/grid/${strategy.id}/edit`,
     remove: () => spotGridStore.deleteStrategy(strategy.id),
@@ -149,7 +171,9 @@ function martingaleCard(item) {
     name: strategy.name,
     typeLabel: `${mode}马丁`,
     icon: Flame,
-    sideLong: strategy.side === MARTINGALE_SIDE_LONG,
+    sideIcon: strategy.side === MARTINGALE_SIDE_LONG ? TrendingUp : TrendingDown,
+    sideLabel: strategy.side === MARTINGALE_SIDE_LONG ? '做多' : '做空',
+    sideType: strategy.side === MARTINGALE_SIDE_LONG ? 'success' : 'danger',
     detailPath: `/${market.value}/martingale/${strategy.id}`,
     editPath: `/${market.value}/martingale/${strategy.id}/edit`,
     remove: () => (isContract.value ? contractMartingaleStore : spotMartingaleStore).deleteStrategy(strategy.id),
@@ -213,10 +237,9 @@ function martingaleCard(item) {
         </van-cell>
         <van-cell>
           <template #title>
-            <van-tag plain :type="card.sideLong ? 'success' : 'danger'">
-              <TrendingUp v-if="card.sideLong" :size="14" />
-              <TrendingDown v-else :size="14" />
-              {{ card.sideLong ? '做多' : '做空' }}
+            <van-tag plain :type="card.sideType">
+              <component :is="card.sideIcon" v-if="card.sideIcon" :size="14" />
+              {{ card.sideLabel }}
             </van-tag>
           </template>
         </van-cell>
