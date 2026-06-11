@@ -13,3 +13,20 @@ export function formatNumber(value, digits = 4) {
 export function formatPercent(value, digits = 4) {
   return `${formatNumber(value, digits)}%`;
 }
+
+export function formatSignedPercent(value, digits = 2) {
+  const prefix = Number.isFinite(value) && value > 0 ? '+' : '';
+  if (!Number.isFinite(value)) return '-%';
+  const formattedValue = new Intl.NumberFormat('zh-CN', {
+    maximumFractionDigits: digits,
+  }).format(value);
+  return `${prefix}${formattedValue}%`;
+}
+
+export function formatPriceWithCurrentChange(price, currentPrice, priceDigits = 4, percentDigits = 2) {
+  const formattedPrice = formatNumber(price, priceDigits);
+  if (!Number.isFinite(currentPrice) || currentPrice <= 0) return formattedPrice;
+
+  const changePercent = ((price - currentPrice) / currentPrice) * 100;
+  return `${formattedPrice} (${formatSignedPercent(changePercent, percentDigits)})`;
+}

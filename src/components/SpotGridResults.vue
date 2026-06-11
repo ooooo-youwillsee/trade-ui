@@ -3,7 +3,7 @@
 import { computed, ref } from 'vue';
 import { BarChart3, Boxes, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC, POSITION_INCREMENT_DIFFERENCE } from '../strategies/common/grid';
-import { formatNumber, formatPercent } from '../utils/formatters';
+import { formatNumber, formatPercent, formatPriceWithCurrentChange } from '../utils/formatters';
 
 // activeInput 和 result 分离，便于结果缺失时仍可展示输入相关状态。
 const props = defineProps({
@@ -25,8 +25,14 @@ const inputRows = computed(() => [
   ['方向', sideLabel.value],
   ['网格模式', props.activeInput?.gridMode === GRID_MODE_GEOMETRIC ? '等比' : '等差'],
   ['创建时建仓', props.activeInput?.openOnCreate ? '是' : '否'],
-  ['下限价格', formatNumber(props.activeInput?.lowerPrice ?? 0, 4)],
-  ['上限价格', formatNumber(props.activeInput?.upperPrice ?? 0, 4)],
+  [
+    '下限价格',
+    formatPriceWithCurrentChange(props.activeInput?.lowerPrice ?? 0, props.activeInput?.currentPrice ?? 0, 4, 2),
+  ],
+  [
+    '上限价格',
+    formatPriceWithCurrentChange(props.activeInput?.upperPrice ?? 0, props.activeInput?.currentPrice ?? 0, 4, 2),
+  ],
   ['入场价格', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
   ['当前价格', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
   ['网格数量', String(props.activeInput?.gridCount ?? '-')],

@@ -18,7 +18,7 @@ import {
   POSITION_INCREMENT_DIFFERENCE,
 } from '../strategies/common/grid';
 import { getHealth } from '../composables/useContractGridStrategies';
-import { formatNumber, formatPercent } from '../utils/formatters';
+import { formatNumber, formatPercent, formatPriceWithCurrentChange } from '../utils/formatters';
 
 // activeInput 用于展示输入摘要，result 用于展示计算结果。
 const props = defineProps({
@@ -100,8 +100,14 @@ const inputRows = computed(() => [
   ['方向', sideText(props.activeInput?.side)],
   ['网格模式', props.activeInput?.gridMode === GRID_MODE_GEOMETRIC ? '等比' : '等差'],
   ['创建时建仓', props.activeInput?.openOnCreate ? '是' : '否'],
-  ['下限价格', formatNumber(props.activeInput?.lowerPrice ?? 0, 4)],
-  ['上限价格', formatNumber(props.activeInput?.upperPrice ?? 0, 4)],
+  [
+    '下限价格',
+    formatPriceWithCurrentChange(props.activeInput?.lowerPrice ?? 0, props.activeInput?.currentPrice ?? 0, 4, 2),
+  ],
+  [
+    '上限价格',
+    formatPriceWithCurrentChange(props.activeInput?.upperPrice ?? 0, props.activeInput?.currentPrice ?? 0, 4, 2),
+  ],
   ['入场价格', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
   ['当前价格', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
   ['网格数量', String(props.activeInput?.gridCount ?? '-')],
