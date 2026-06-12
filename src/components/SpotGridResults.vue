@@ -3,7 +3,7 @@
 import { computed, ref } from 'vue';
 import { BarChart3, Boxes, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC, POSITION_INCREMENT_DIFFERENCE } from '../strategies/common/grid';
-import { formatNumber, formatPercent, formatPriceWithCurrentChange } from '../utils/formatters';
+import { formatNumber, formatPercent, formatPriceWithReferenceChange } from '../utils/formatters';
 
 // activeInput 和 result 分离，便于结果缺失时仍可展示输入相关状态。
 const props = defineProps({
@@ -27,14 +27,17 @@ const inputRows = computed(() => [
   ['创建时建仓', props.activeInput?.openOnCreate ? '是' : '否'],
   [
     '下限价格',
-    formatPriceWithCurrentChange(props.activeInput?.lowerPrice ?? 0, props.activeInput?.currentPrice ?? 0, 4, 2),
+    formatPriceWithReferenceChange(props.activeInput?.lowerPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
   ],
   [
     '上限价格',
-    formatPriceWithCurrentChange(props.activeInput?.upperPrice ?? 0, props.activeInput?.currentPrice ?? 0, 4, 2),
+    formatPriceWithReferenceChange(props.activeInput?.upperPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
   ],
   ['入场价格', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
-  ['当前价格', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
+  [
+    '当前价格',
+    formatPriceWithReferenceChange(props.activeInput?.currentPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
+  ],
   ['网格数量', String(props.activeInput?.gridCount ?? '-')],
   ['投入金额', formatNumber(props.activeInput?.investment ?? 0, 2)],
   ['仓位递增', incrementLabel.value],
@@ -45,7 +48,7 @@ const summaryMetrics = computed(() => [
   ['浮动盈亏', formatNumber(props.result?.floatingProfitLoss ?? 0, 4)],
   ['持仓数量', formatNumber(props.result?.positionQuantity ?? 0, 8)],
   ['单格收益率', formatPercent(props.result?.gridProfitRate ?? 0, 4)],
-  ['区间收益率', formatPercent(props.result?.totalYieldRate ?? 0, 4)],
+  ['区间振幅', formatPercent(props.result?.totalYieldRate ?? 0, 4)],
 ]);
 </script>
 

@@ -10,6 +10,7 @@ import {
   limitedGridProfitLoss,
   POSITION_INCREMENT_DIFFERENCE,
   POSITION_INCREMENT_RATIO,
+  totalYieldRate,
 } from './grid';
 
 // 公共网格算法测试：验证价格序列、成交网格识别和单格盈亏封顶。
@@ -86,5 +87,12 @@ describe('limitedGridProfitLoss', () => {
 
   it('caps short grid profit at the target price', () => {
     expect(limitedGridProfitLoss(100, 200, 150, 2, CONTRACT_SIDE_SHORT)).toBe(100);
+  });
+});
+
+describe('totalYieldRate', () => {
+  it('returns the interval amplitude from lower to upper price regardless of side', () => {
+    expect(totalYieldRate(CONTRACT_SIDE_LONG, 100, 200)).toBe(100);
+    expect(totalYieldRate(CONTRACT_SIDE_SHORT, 100, 200)).toBe(100);
   });
 });

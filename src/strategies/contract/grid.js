@@ -89,7 +89,7 @@ export function calculateContractGrid(input) {
   const estimatedGridPosition = estimateGridPosition(input, gridPrices, gridNotionals);
   result.estimatedGridLiquidationPrice = estimatedLiquidationPrice(input, result, estimatedGridPosition);
   result.gridProfitRate = contractGridProfitRate(input.side, gridStep, gridRatio, gridPrices, input.gridMode);
-  result.totalYieldRate = contractTotalYieldRate(input.side, input.lowerPrice, input.upperPrice);
+  result.totalYieldRate = totalYieldRate(input.side, input.lowerPrice, input.upperPrice);
 
   if (result.currentNotional === 0) {
     return result;
@@ -309,15 +309,6 @@ function contractGridProfitRate(side, gridStep, gridRatio, gridPrices, gridMode)
   return Math.min(
     gridProfitRate(CONTRACT_SIDE_LONG, gridStep, gridRatio, gridPrices, gridMode),
     gridProfitRate(CONTRACT_SIDE_SHORT, gridStep, gridRatio, gridPrices, gridMode),
-  );
-}
-
-// 中性网格的区间收益率同样取多空两侧中更保守的一侧。
-function contractTotalYieldRate(side, lowerPrice, upperPrice) {
-  if (side !== CONTRACT_SIDE_NEUTRAL) return totalYieldRate(side, lowerPrice, upperPrice);
-  return Math.min(
-    totalYieldRate(CONTRACT_SIDE_LONG, lowerPrice, upperPrice),
-    totalYieldRate(CONTRACT_SIDE_SHORT, lowerPrice, upperPrice),
   );
 }
 

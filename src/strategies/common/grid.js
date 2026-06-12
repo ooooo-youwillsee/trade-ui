@@ -124,11 +124,9 @@ export function gridProfitRate(side, gridStep, gridRatio, gridPrices, gridMode) 
   return 0;
 }
 
-// 区间总收益率用于展示策略上下限理论波动空间。
+// 区间振幅只描述上下限价格本身的波动空间，不随网格方向变化。
 export function totalYieldRate(side, lowerPrice, upperPrice) {
-  if (side === CONTRACT_SIDE_LONG) return ((upperPrice - lowerPrice) / lowerPrice) * 100;
-  if (side === CONTRACT_SIDE_SHORT) return ((upperPrice - lowerPrice) / upperPrice) * 100;
-  return 0;
+  return ((upperPrice - lowerPrice) / lowerPrice) * 100;
 }
 
 // 做多单格收益率：等比直接使用比例，等差按最低买入价估算。

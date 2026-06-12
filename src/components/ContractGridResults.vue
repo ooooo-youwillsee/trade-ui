@@ -18,7 +18,7 @@ import {
   POSITION_INCREMENT_DIFFERENCE,
 } from '../strategies/common/grid';
 import { getHealth } from '../composables/useContractGridStrategies';
-import { formatNumber, formatPercent, formatPriceWithCurrentChange } from '../utils/formatters';
+import { formatNumber, formatPercent, formatPriceWithReferenceChange } from '../utils/formatters';
 
 // activeInput 用于展示输入摘要，result 用于展示计算结果。
 const props = defineProps({
@@ -76,7 +76,7 @@ const summaryMetrics = computed(() => [
     value: formatPercent(props.result?.gridProfitRate ?? 0, 4),
   },
   {
-    label: '区间收益率',
+    label: '区间振幅',
     value: formatPercent(props.result?.totalYieldRate ?? 0, 4),
   },
 ]);
@@ -102,14 +102,17 @@ const inputRows = computed(() => [
   ['创建时建仓', props.activeInput?.openOnCreate ? '是' : '否'],
   [
     '下限价格',
-    formatPriceWithCurrentChange(props.activeInput?.lowerPrice ?? 0, props.activeInput?.currentPrice ?? 0, 4, 2),
+    formatPriceWithReferenceChange(props.activeInput?.lowerPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
   ],
   [
     '上限价格',
-    formatPriceWithCurrentChange(props.activeInput?.upperPrice ?? 0, props.activeInput?.currentPrice ?? 0, 4, 2),
+    formatPriceWithReferenceChange(props.activeInput?.upperPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
   ],
   ['入场价格', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
-  ['当前价格', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
+  [
+    '当前价格',
+    formatPriceWithReferenceChange(props.activeInput?.currentPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
+  ],
   ['网格数量', String(props.activeInput?.gridCount ?? '-')],
   ['杠杆倍数', `${formatNumber(props.activeInput?.leverage ?? 0, 2)}x`],
   ['初始保证金', formatNumber(props.activeInput?.investment ?? 0, 2)],

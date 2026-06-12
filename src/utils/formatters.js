@@ -23,10 +23,10 @@ export function formatSignedPercent(value, digits = 2) {
   return `${prefix}${formattedValue}%`;
 }
 
-export function formatPriceWithCurrentChange(price, currentPrice, priceDigits = 4, percentDigits = 2) {
+export function formatPriceWithReferenceChange(price, referencePrice, priceDigits = 4, percentDigits = 2) {
   const formattedPrice = formatNumber(price, priceDigits);
-  if (!Number.isFinite(currentPrice) || currentPrice <= 0) return formattedPrice;
+  if (!Number.isFinite(referencePrice) || referencePrice <= 0) return formattedPrice;
 
-  const changePercent = ((price - currentPrice) / currentPrice) * 100;
+  const changePercent = ((price - referencePrice) / referencePrice) * 100;
   return `${formattedPrice} (${formatSignedPercent(changePercent, percentDigits)})`;
 }

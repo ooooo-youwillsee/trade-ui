@@ -58,7 +58,7 @@ describe('calculateContractGrid', () => {
     expect(result.averageEntryPrice).toBe(175);
     expect(result.liquidationPrice).toBeCloseTo(245);
     expect(result.gridProfitRate).toBe(12.5);
-    expect(result.totalYieldRate).toBe(50);
+    expect(result.totalYieldRate).toBe(100);
   });
 
   it('keeps old inputs compatible when increment fields are omitted', () => {
@@ -179,7 +179,7 @@ describe('calculateContractGrid', () => {
     });
 
     expect(result.gridProfitRate).toBe(12.5);
-    expect(result.totalYieldRate).toBe(50);
+    expect(result.totalYieldRate).toBe(100);
     expect(result.gridOrders.map((order) => order.side)).toEqual([
       CONTRACT_SIDE_LONG,
       CONTRACT_SIDE_LONG,
