@@ -40,7 +40,14 @@ export function calculateContractGrid(input) {
   const gridNotionals = gridMargins.map((gridMargin) => gridMargin * input.leverage);
   const filledGridPositions = contractFilledPositions(input, gridPrices);
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
-  const gridOrders = buildGridOrders(input.side, input.entryPrice, gridPrices, gridMargins, filledGridPrices);
+  const gridOrders = buildGridOrders(
+    input.side,
+    input.entryPrice,
+    gridPrices,
+    gridMargins,
+    input.leverage,
+    filledGridPrices,
+  );
   const position = calculateCurrentPosition(input, filledGridPositions, gridPrices, gridNotionals);
   const longLeg = buildContractLeg(input, CONTRACT_SIDE_LONG, filledGridPositions, gridPrices, gridNotionals);
   const shortLeg = buildContractLeg(input, CONTRACT_SIDE_SHORT, filledGridPositions, gridPrices, gridNotionals);
@@ -197,15 +204,17 @@ function legUsedMargin(side, positions, gridPrices, gridNotionals, leverage) {
 }
 
 // 构造挂单展示行，中性模式会把每格标记为做多腿或做空腿。
-function buildGridOrders(side, entryPrice, gridPrices, gridMargins, filledGridPrices) {
+function buildGridOrders(side, entryPrice, gridPrices, gridMargins, leverage, filledGridPrices) {
   return gridMargins.map((margin, index) => {
     const price = gridPrices[index];
     const orderSide = gridOrderSide(side, entryPrice, price);
+    const profitRate = gridOrderProfitRate(orderSide, gridPrices, index);
     return {
       price,
       margin,
       side: orderSide,
-      profitRate: gridOrderProfitRate(orderSide, gridPrices, index),
+      profitRate,
+      profitAmount: (margin * leverage * profitRate) / 100,
       filled: filledGridPrices.includes(price),
     };
   });

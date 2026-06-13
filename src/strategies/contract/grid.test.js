@@ -98,6 +98,7 @@ describe('calculateContractGrid', () => {
     expect(result.gridOrders.map((order) => order.margin)).toEqual(result.gridMargins);
     expect(result.gridOrders.map((order) => order.filled)).toEqual([false, true, false, false]);
     expect(result.gridOrders[1].profitRate).toBe(20);
+    expect(result.gridOrders[1].profitAmount).toBeCloseTo(106.6666666667);
   });
 
   it('builds short order rows with per-grid profit rates', () => {
@@ -112,6 +113,7 @@ describe('calculateContractGrid', () => {
     expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
     expect(result.gridOrders.map((order) => order.filled)).toEqual([false, false, false, true]);
     expect(result.gridOrders[3].profitRate).toBeCloseTo(14.2857142857);
+    expect(result.gridOrders[3].profitAmount).toBeCloseTo(71.4285714286);
   });
 
   it('fills the long leg below entry price for a neutral grid', () => {
@@ -188,6 +190,9 @@ describe('calculateContractGrid', () => {
     ]);
     expect(result.gridOrders.map((order) => order.profitRate)).toEqual([
       25, 20, 16.666666666666664, 14.285714285714285,
+    ]);
+    expect(result.gridOrders.map((order) => order.profitAmount)).toEqual([
+      125, 100, 83.33333333333331, 71.42857142857142,
     ]);
   });
 

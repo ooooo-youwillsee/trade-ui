@@ -242,6 +242,10 @@ function sideTagType(side) {
                 <span>利润率</span>
                 <strong>{{ formatPercent(order.profitRate, 4) }}</strong>
               </div>
+              <div>
+                <span>收益额</span>
+                <strong>{{ formatNumber(order.profitAmount ?? 0, 4) }}</strong>
+              </div>
               <van-tag :type="sideTagType(order.side)" round>{{ sideText(order.side) }}</van-tag>
               <van-tag :type="order.filled ? 'warning' : 'primary'" round>
                 {{ order.filled ? '已成交' : '未成交' }}
@@ -491,7 +495,7 @@ function sideTagType(side) {
 
 .grid-order-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 0.9fr) auto auto;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.8fr) auto auto;
   align-items: center;
   gap: 10px;
   min-height: 56px;

@@ -84,10 +84,12 @@ export function calculateSpotGrid(input) {
 function buildGridOrders(side, gridPrices, gridInvestments, filledGridPrices) {
   return gridInvestments.map((investment, index) => {
     const price = gridPrices[index];
+    const profitRate = gridOrderProfitRate(side, gridPrices, index);
     return {
       price,
       investment,
-      profitRate: gridOrderProfitRate(side, gridPrices, index),
+      profitRate,
+      profitAmount: (investment * profitRate) / 100,
       filled: filledGridPrices.includes(price),
     };
   });
