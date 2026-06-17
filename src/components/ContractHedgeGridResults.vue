@@ -21,7 +21,7 @@ const summaryMetrics = computed(() => [
   ['需补保证金', formatNumber(props.result?.requiredMarginAmount ?? 0, 2)],
   ['资金缺口', formatNumber(props.result?.marginShortfall ?? 0, 2)],
   ['可转出盈利', formatNumber(props.result?.availableTransferAmount ?? 0, 2)],
-  ['场景总浮盈亏', formatNumber(props.result?.scenarioFloatingProfitLoss ?? 0, 2)],
+  ['场景总收益', formatNumber(props.result?.scenarioTotalProfitLoss ?? 0, 2)],
 ]);
 
 const scenarioRows = computed(() => [
@@ -79,7 +79,7 @@ function legMetrics(leg) {
     ['场景持仓均价', formatNumber(leg.scenario?.averageEntryPrice ?? 0, 4)],
     ['当前强平价', formatNumber(leg.result?.liquidationPrice ?? 0, 4)],
     ['场景强平价', formatNumber(leg.scenario?.liquidationPrice ?? 0, 4)],
-    ['场景总收益', formatNumber(leg.scenario?.totalProfitLoss ?? leg.scenario?.floatingProfitLoss ?? 0, 4)],
+    ['场景总收益', formatNumber(leg.scenario?.totalProfitLoss ?? 0, 4)],
     ['需补保证金', formatNumber(leg.requiredMargin, 4)],
   ];
 }

@@ -53,7 +53,7 @@ export function calculateStrategy(strategy) {
 // 当前收益率以已成交保证金为分母，体现实际占用资金的回报。
 export function currentYieldRate(strategyResult) {
   if (!strategyResult?.filledMargin) return 0;
-  return (strategyResult.floatingProfitLoss / strategyResult.filledMargin) * 100;
+  return (strategyResult.totalProfitLoss / strategyResult.filledMargin) * 100;
 }
 
 // 根据当前价格与估算强平价距离生成健康度标签和颜色语义。

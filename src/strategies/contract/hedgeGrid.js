@@ -10,6 +10,7 @@ import {
   POSITION_INCREMENT_RATIO,
 } from '../common/grid';
 import { calculateContractGrid } from './grid';
+import { aggregateContractPositionEntries, liquidationPrice } from './position';
 
 export { GRID_MODE_ARITHMETIC, GRID_MODE_GEOMETRIC, POSITION_INCREMENT_DIFFERENCE, POSITION_INCREMENT_RATIO };
 
@@ -27,10 +28,9 @@ export function calculateContractHedgeGrid(input) {
   const shortRequiredMarginAmount = requiredScenarioMargin(CONTRACT_SIDE_SHORT, shortScenarioResult);
   // 可转出盈利取两条腿场景总收益中的正数，已止盈收益也会被纳入。
   const availableTransferAmount =
-    Math.max(0, longScenarioResult.totalProfitLoss ?? longScenarioResult.floatingProfitLoss) +
-    Math.max(0, shortScenarioResult.totalProfitLoss ?? shortScenarioResult.floatingProfitLoss);
+    Math.max(0, longScenarioResult.totalProfitLoss) + Math.max(0, shortScenarioResult.totalProfitLoss);
   const requiredMarginAmount = longRequiredMarginAmount + shortRequiredMarginAmount;
-  const scenarioFloatingProfitLoss = longScenarioResult.floatingProfitLoss + shortScenarioResult.floatingProfitLoss;
+  const scenarioTotalProfitLoss = longScenarioResult.totalProfitLoss + shortScenarioResult.totalProfitLoss;
 
   return {
     name: input.name,
@@ -49,7 +49,7 @@ export function calculateContractHedgeGrid(input) {
     availableTransferAmount,
     requiredMarginAmount,
     marginShortfall: Math.max(0, requiredMarginAmount - availableTransferAmount),
-    scenarioFloatingProfitLoss,
+    scenarioTotalProfitLoss,
   };
 }
 
@@ -93,31 +93,46 @@ function scenarioPrice(currentPrice, changePercent) {
 }
 
 function calculateScenarioLegResult(input, currentResult, nextPrice) {
-  // 逆势场景会继续触发新网格，直接复用公共合约网格按场景价重算。
   if (!isFavorableMove(input.side, input.currentPrice, nextPrice)) {
-    return calculateContractGrid({ ...input, currentPrice: nextPrice });
+    return calculateAdverseScenarioLeg(input, nextPrice);
   }
 
+  return calculateFavorableScenarioLeg(input, currentResult, nextPrice);
+}
+
+function calculateAdverseScenarioLeg(input, nextPrice) {
+  // 逆势场景会继续触发新网格，直接复用公共合约网格按场景价重算。
+  return calculateContractGrid({ ...input, currentPrice: nextPrice });
+}
+
+function calculateFavorableScenarioLeg(input, currentResult, nextPrice) {
   // 顺势场景从当前未平仓网格出发，只处理止盈平仓，不新增逆势仓位。
   const gridPrices = buildGridPrices(input.lowerPrice, input.upperPrice, input.gridCount, input.gridMode);
   const openPositions = currentResult.openGridPrices.map((gridPrice) =>
     buildScenarioPosition(input, gridPrice, gridPrices, currentResult.gridNotionals),
   );
-  const nextOpenPositions = [];
-  const nextClosedPositions = [...(currentResult.closedGridPrices || [])];
-  let realizedProfitLoss = currentResult.realizedProfitLoss || 0;
+  const {
+    openPositions: nextOpenPositions,
+    closedGridPrices: nextClosedPositions,
+    realizedProfitLoss,
+  } = closeReachedScenarioPositions(
+    input.side,
+    nextPrice,
+    openPositions,
+    currentResult.closedGridPrices || [],
+    currentResult.realizedProfitLoss || 0,
+  );
 
-  // 对冲场景是从当前价推演到场景价，顺势到达目标价的当前持仓要转成已实现收益。
-  openPositions.forEach((position) => {
-    if (positionClosed(input.side, nextPrice, position.targetPrice)) {
-      nextClosedPositions.push(position.gridPrice);
-      realizedProfitLoss += profitAtTarget(input.side, position);
-      return;
-    }
-    nextOpenPositions.push(position);
-  });
-
-  const openPosition = aggregateScenarioPositions(input.side, nextPrice, nextOpenPositions, input.leverage);
+  const openPosition = aggregateContractPositionEntries(
+    nextOpenPositions.map((position) => ({
+      side: input.side,
+      openPrice: position.openPrice,
+      targetPrice: position.targetPrice,
+      notional: position.notional,
+    })),
+    nextPrice,
+    input.leverage,
+  );
   const filledMargin = openPosition.margin + input.additionalInvestment;
   // 场景总收益 = 已止盈收益 + 剩余未平仓浮盈亏，用于权益和可转出盈利。
   const totalProfitLoss = realizedProfitLoss + openPosition.floatingProfitLoss;
@@ -136,9 +151,36 @@ function calculateScenarioLegResult(input, currentResult, nextPrice) {
     realizedProfitLoss,
     unrealizedProfitLoss: openPosition.floatingProfitLoss,
     totalProfitLoss,
-    floatingProfitLoss: totalProfitLoss,
     currentEquity: filledMargin + totalProfitLoss,
     liquidationPrice: liquidationPrice(input.side, openPosition.averageEntryPrice, openPosition.notional, filledMargin),
+  };
+}
+
+function closeReachedScenarioPositions(
+  side,
+  nextPrice,
+  openPositions,
+  currentClosedGridPrices,
+  currentRealizedProfitLoss,
+) {
+  const nextOpenPositions = [];
+  const nextClosedPositions = [...currentClosedGridPrices];
+  let realizedProfitLoss = currentRealizedProfitLoss;
+
+  // 对冲场景从当前价推演到场景价，顺势到达目标价的持仓转为已实现收益。
+  openPositions.forEach((position) => {
+    if (positionClosed(side, nextPrice, position.targetPrice)) {
+      nextClosedPositions.push(position.gridPrice);
+      realizedProfitLoss += profitAtTarget(side, position);
+      return;
+    }
+    nextOpenPositions.push(position);
+  });
+
+  return {
+    openPositions: nextOpenPositions,
+    closedGridPrices: nextClosedPositions,
+    realizedProfitLoss,
   };
 }
 
@@ -176,48 +218,6 @@ function positionClosed(side, price, targetPrice) {
 function profitAtTarget(side, position) {
   if (side === CONTRACT_SIDE_LONG) return (position.targetPrice - position.openPrice) * position.quantity;
   return (position.openPrice - position.targetPrice) * position.quantity;
-}
-
-function aggregateScenarioPositions(side, currentPrice, positions, leverage) {
-  // 只聚合场景下仍未平仓的网格，强平价和均价不能包含已止盈仓位。
-  const aggregate = {
-    margin: 0,
-    notional: 0,
-    quantity: 0,
-    averageEntryPrice: 0,
-    floatingProfitLoss: 0,
-  };
-
-  positions.forEach((position) => {
-    aggregate.margin += position.notional / leverage;
-    aggregate.notional += position.notional;
-    aggregate.quantity += position.quantity;
-    aggregate.floatingProfitLoss += limitedScenarioProfitLoss(side, currentPrice, position);
-  });
-
-  if (aggregate.quantity > 0) {
-    aggregate.averageEntryPrice = aggregate.notional / aggregate.quantity;
-  }
-  return aggregate;
-}
-
-function limitedScenarioProfitLoss(side, currentPrice, position) {
-  // 顺势推演时浮盈最多只认到目标止盈价，超过部分视为已平仓后的空档。
-  if (side === CONTRACT_SIDE_LONG) {
-    const profitLoss = (currentPrice - position.openPrice) * position.quantity;
-    const maxProfit = (position.targetPrice - position.openPrice) * position.quantity;
-    return maxProfit > 0 && profitLoss > maxProfit ? maxProfit : profitLoss;
-  }
-
-  const profitLoss = (position.openPrice - currentPrice) * position.quantity;
-  const maxProfit = (position.openPrice - position.targetPrice) * position.quantity;
-  return maxProfit > 0 && profitLoss > maxProfit ? maxProfit : profitLoss;
-}
-
-function liquidationPrice(side, averageEntryPrice, positionNotional, margin) {
-  if (positionNotional <= 0) return 0;
-  if (side === CONTRACT_SIDE_LONG) return Math.max(averageEntryPrice * (1 - margin / positionNotional), 0);
-  return averageEntryPrice * (1 + margin / positionNotional);
 }
 
 function requiredScenarioMargin(side, scenarioResult) {

@@ -1,13 +1,8 @@
 <script setup>
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
-import {
-  GRID_MODE_ARITHMETIC,
-  GRID_MODE_GEOMETRIC,
-  POSITION_INCREMENT_DIFFERENCE,
-  POSITION_INCREMENT_RATIO,
-} from '../strategies/contract/hedgeGrid';
+import ContractHedgeGridLegFields from './ContractHedgeGridLegFields.vue';
 
-const props = defineProps({
+defineProps({
   calculation: {
     type: Object,
     required: true,
@@ -31,21 +26,6 @@ const props = defineProps({
 });
 
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
-
-// 单格递增沿用普通合约网格的两种模式：按比例或按金额增加每格仓位。
-const incrementModeActions = [
-  { text: '比例', value: POSITION_INCREMENT_RATIO },
-  { text: '金额', value: POSITION_INCREMENT_DIFFERENCE },
-];
-
-function incrementModeLabel(mode) {
-  // 金额模式显示 USDT，比例模式显示百分比，减少表单额外说明文字。
-  return mode === POSITION_INCREMENT_DIFFERENCE ? 'USDT' : '%';
-}
-
-function setIncrementMode(leg, action) {
-  leg.positionIncrementMode = action.value;
-}
 </script>
 
 <template>
@@ -92,105 +72,9 @@ function setIncrementMode(leg, action) {
       </van-field>
     </van-cell-group>
 
-    <van-cell-group inset title="多头合约">
-      <van-field v-model="form.longLeg.name" label="合约名称" input-align="right" />
-      <van-field v-model.number="form.longLeg.lowerPrice" label="下限价格" type="number" input-align="right" />
-      <van-field v-model.number="form.longLeg.upperPrice" label="上限价格" type="number" input-align="right" />
-      <van-field v-model.number="form.longLeg.entryPrice" label="入场价格" type="number" input-align="right" />
-      <van-field v-model.number="form.longLeg.currentPrice" label="当前价格" type="number" input-align="right" />
-      <van-field label="网格模式">
-        <template #input>
-          <van-radio-group v-model="form.longLeg.gridMode" direction="horizontal">
-            <van-radio :name="GRID_MODE_ARITHMETIC">等差</van-radio>
-            <van-radio :name="GRID_MODE_GEOMETRIC">等比</van-radio>
-          </van-radio-group>
-        </template>
-      </van-field>
-      <van-cell center title="创建时建仓">
-        <template #right-icon>
-          <van-switch v-model="form.longLeg.openOnCreate" size="22px" />
-        </template>
-      </van-cell>
-      <van-field v-model.number="form.longLeg.gridCount" label="网格数量" type="number" input-align="right" />
-      <van-field v-model.number="form.longLeg.leverage" label="杠杆倍数" type="number" input-align="right" />
-      <van-field v-model.number="form.longLeg.investment" label="初始保证金" type="number" input-align="right" />
-      <van-field
-        v-model.number="form.longLeg.additionalInvestment"
-        label="追加保证金"
-        type="number"
-        input-align="right"
-      />
-      <van-field
-        v-model.number="form.longLeg.positionIncrementValue"
-        label="单格递增"
-        type="number"
-        input-align="right"
-      >
-        <template #button>
-          <van-popover
-            :actions="incrementModeActions"
-            placement="bottom-end"
-            @select="setIncrementMode(form.longLeg, $event)"
-          >
-            <template #reference>
-              <van-button class="field-suffix-button" size="small" plain type="primary">
-                {{ incrementModeLabel(form.longLeg.positionIncrementMode) }}
-              </van-button>
-            </template>
-          </van-popover>
-        </template>
-      </van-field>
-    </van-cell-group>
-
-    <van-cell-group inset title="空头合约">
-      <van-field v-model="form.shortLeg.name" label="合约名称" input-align="right" />
-      <van-field v-model.number="form.shortLeg.lowerPrice" label="下限价格" type="number" input-align="right" />
-      <van-field v-model.number="form.shortLeg.upperPrice" label="上限价格" type="number" input-align="right" />
-      <van-field v-model.number="form.shortLeg.entryPrice" label="入场价格" type="number" input-align="right" />
-      <van-field v-model.number="form.shortLeg.currentPrice" label="当前价格" type="number" input-align="right" />
-      <van-field label="网格模式">
-        <template #input>
-          <van-radio-group v-model="form.shortLeg.gridMode" direction="horizontal">
-            <van-radio :name="GRID_MODE_ARITHMETIC">等差</van-radio>
-            <van-radio :name="GRID_MODE_GEOMETRIC">等比</van-radio>
-          </van-radio-group>
-        </template>
-      </van-field>
-      <van-cell center title="创建时建仓">
-        <template #right-icon>
-          <van-switch v-model="form.shortLeg.openOnCreate" size="22px" />
-        </template>
-      </van-cell>
-      <van-field v-model.number="form.shortLeg.gridCount" label="网格数量" type="number" input-align="right" />
-      <van-field v-model.number="form.shortLeg.leverage" label="杠杆倍数" type="number" input-align="right" />
-      <van-field v-model.number="form.shortLeg.investment" label="初始保证金" type="number" input-align="right" />
-      <van-field
-        v-model.number="form.shortLeg.additionalInvestment"
-        label="追加保证金"
-        type="number"
-        input-align="right"
-      />
-      <van-field
-        v-model.number="form.shortLeg.positionIncrementValue"
-        label="单格递增"
-        type="number"
-        input-align="right"
-      >
-        <template #button>
-          <van-popover
-            :actions="incrementModeActions"
-            placement="bottom-end"
-            @select="setIncrementMode(form.shortLeg, $event)"
-          >
-            <template #reference>
-              <van-button class="field-suffix-button" size="small" plain type="primary">
-                {{ incrementModeLabel(form.shortLeg.positionIncrementMode) }}
-              </van-button>
-            </template>
-          </van-popover>
-        </template>
-      </van-field>
-    </van-cell-group>
+    <!-- 两条腿复用同一个字段组件，父表单只保留策略级信息和操作按钮。 -->
+    <ContractHedgeGridLegFields title="多头合约" :leg="form.longLeg" />
+    <ContractHedgeGridLegFields title="空头合约" :leg="form.shortLeg" />
 
     <div class="save-actions">
       <van-button
@@ -286,9 +170,5 @@ function setIncrementMode(leg, action) {
   :deep(.van-button:first-child) {
     grid-column: 1 / -1;
   }
-}
-
-.field-suffix-button {
-  min-width: 56px;
 }
 </style>

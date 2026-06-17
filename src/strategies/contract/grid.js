@@ -9,11 +9,11 @@ import {
   GRID_MODE_GEOMETRIC,
   gridProfitRate,
   gridPositionInvestment,
-  limitedGridProfitLoss,
   POSITION_INCREMENT_DIFFERENCE,
   POSITION_INCREMENT_RATIO,
   totalYieldRate,
 } from '../common/grid';
+import { aggregateContractPositionEntries, liquidationPrice } from './position';
 
 // 合约网格计算模块：在公共网格算法之上补充杠杆、保证金和强平价逻辑。
 export {
@@ -89,8 +89,6 @@ export function calculateContractGrid(input) {
     realizedProfitLoss,
     unrealizedProfitLoss: position.floatingProfitLoss,
     totalProfitLoss,
-    // 兼容旧 UI：floatingProfitLoss 暂时保留为总收益，避免列表和详情页断裂。
-    floatingProfitLoss: totalProfitLoss,
     currentEquity: 0,
     liquidationPrice: 0,
     estimatedGridLiquidationPrice: 0,
@@ -238,7 +236,6 @@ function buildContractLeg(input, side, positions, gridPrices, gridNotionals) {
     realizedProfitLoss,
     unrealizedProfitLoss: position.floatingProfitLoss,
     totalProfitLoss,
-    floatingProfitLoss: totalProfitLoss,
     currentEquity: filledMargin + totalProfitLoss,
     liquidationPrice: liquidationPrice(side, position.averageEntryPrice, position.notional, filledMargin),
   };
@@ -331,18 +328,6 @@ function validateContractGridInput(input) {
   }
 }
 
-// 简化强平估算：做多价格下移，做空价格上移，保证金作为可承受亏损预算。
-function liquidationPrice(side, averageEntryPrice, positionNotional, margin) {
-  if (positionNotional <= 0) return 0;
-  if (side === CONTRACT_SIDE_LONG) {
-    return Math.max(averageEntryPrice * (1 - margin / positionNotional), 0);
-  }
-  if (side === CONTRACT_SIDE_SHORT) {
-    return averageEntryPrice * (1 + margin / positionNotional);
-  }
-  return 0;
-}
-
 // 用区间低点/高点估算极端情况下的合约仓位，用于展示网格整体风险。
 // 列表兼容字段只保留一个强平价，中性模式取距离当前价最近的一侧风险。
 function estimatedLiquidationPrice(input, result, estimatedGridPosition) {
@@ -394,32 +379,15 @@ function estimateGridPosition(input, gridPrices, gridNotionals) {
 
 // 合约仓位按每格名义价值累计，均价由名义价值和数量反推。
 function calculateCurrentPosition(input, positions, gridPrices, gridNotionals) {
-  const position = {
-    margin: 0,
-    notional: 0,
-    quantity: 0,
-    averageEntryPrice: 0,
-    floatingProfitLoss: 0,
-  };
-
-  for (const filled of positions) {
+  const entries = positions.map((filled) => {
     const notional = gridPositionInvestment(filled, gridPrices, gridNotionals);
-    const quantity = notional / filled.openPrice;
-    const side = filled.side || input.side;
-    position.margin += notional / input.leverage;
-    position.notional += notional;
-    position.quantity += quantity;
-    position.floatingProfitLoss += limitedGridProfitLoss(
-      input.currentPrice,
-      filled.openPrice,
-      filled.targetPrice,
-      quantity,
-      side,
-    );
-  }
-
-  if (position.quantity > 0) {
-    position.averageEntryPrice = position.notional / position.quantity;
-  }
-  return position;
+    return {
+      side: filled.side || input.side,
+      openPrice: filled.openPrice,
+      targetPrice: filled.targetPrice,
+      notional,
+    };
+  });
+  // 公共聚合函数只关心未平仓 entry，调用方负责提前完成成交/止盈拆分。
+  return aggregateContractPositionEntries(entries, input.currentPrice, input.leverage);
 }

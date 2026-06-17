@@ -130,7 +130,8 @@ describe('calculateContractGrid', () => {
     expect(result.longLeg.currentNotional).toBe(500);
     expect(result.shortLeg.currentNotional).toBe(0);
     expect(result.currentNotional).toBe(500);
-    expect(result.floatingProfitLoss).toBe(0);
+    expect(result.totalProfitLoss).toBe(0);
+    expect(result).not.toHaveProperty('floatingProfitLoss');
     expect(result.currentEquity).toBe(200);
     expect(result.gridOrders[1].side).toBe(CONTRACT_SIDE_LONG);
   });
@@ -164,10 +165,11 @@ describe('calculateContractGrid', () => {
     expect(result.shortLeg.filledGridPrices).toEqual([100, 125]);
     expect(result.filledGridCount).toBe(4);
     expect(result.currentNotional).toBe(result.longLeg.currentNotional + result.shortLeg.currentNotional);
-    expect(result.floatingProfitLoss).toBeCloseTo(
-      result.longLeg.floatingProfitLoss + result.shortLeg.floatingProfitLoss,
-    );
-    expect(result.currentEquity).toBeCloseTo(result.filledMargin + result.floatingProfitLoss);
+    expect(result.totalProfitLoss).toBeCloseTo(result.longLeg.totalProfitLoss + result.shortLeg.totalProfitLoss);
+    expect(result).not.toHaveProperty('floatingProfitLoss');
+    expect(result.longLeg).not.toHaveProperty('floatingProfitLoss');
+    expect(result.shortLeg).not.toHaveProperty('floatingProfitLoss');
+    expect(result.currentEquity).toBeCloseTo(result.filledMargin + result.totalProfitLoss);
     expect(result.longLeg.liquidationPrice).toBeGreaterThan(0);
     expect(result.shortLeg.liquidationPrice).toBeGreaterThan(0);
   });
@@ -224,7 +226,7 @@ describe('calculateContractGrid', () => {
     expect(result.realizedProfitLoss).toBeCloseTo(83.3333333333);
     expect(result.unrealizedProfitLoss).toBeCloseTo(83.3333333333);
     expect(result.totalProfitLoss).toBeCloseTo(166.6666666667);
-    expect(result.floatingProfitLoss).toBe(result.totalProfitLoss);
+    expect(result).not.toHaveProperty('floatingProfitLoss');
     expect(result.liquidationPrice).toBe(90);
     expect(result.currentEquity).toBeCloseTo(366.6666666667);
   });
@@ -246,7 +248,7 @@ describe('calculateContractGrid', () => {
     expect(result.realizedProfitLoss).toBeCloseTo(83.3333333333);
     expect(result.unrealizedProfitLoss).toBeCloseTo(83.3333333333);
     expect(result.totalProfitLoss).toBeCloseTo(166.6666666667);
-    expect(result.floatingProfitLoss).toBe(result.totalProfitLoss);
+    expect(result).not.toHaveProperty('floatingProfitLoss');
     expect(result.liquidationPrice).toBe(210);
     expect(result.currentEquity).toBeCloseTo(366.6666666667);
   });

@@ -94,8 +94,8 @@ const neutralLegRows = computed(() => [
   ['空腿强平价', formatNumber(props.result?.shortLeg?.liquidationPrice ?? 0, 4)],
   ['多腿名义仓位', formatNumber(props.result?.longLeg?.currentNotional ?? 0, 4)],
   ['空腿名义仓位', formatNumber(props.result?.shortLeg?.currentNotional ?? 0, 4)],
-  ['多腿浮盈亏', formatNumber(props.result?.longLeg?.floatingProfitLoss ?? 0, 4)],
-  ['空腿浮盈亏', formatNumber(props.result?.shortLeg?.floatingProfitLoss ?? 0, 4)],
+  ['多腿总收益', formatNumber(props.result?.longLeg?.totalProfitLoss ?? 0, 4)],
+  ['空腿总收益', formatNumber(props.result?.shortLeg?.totalProfitLoss ?? 0, 4)],
 ]);
 const inputRows = computed(() => [
   ['策略名称', props.activeInput?.name || '-'],
@@ -219,8 +219,8 @@ function sideTagType(side) {
         </div>
         <div class="position-row">
           <span>总收益</span>
-          <strong :class="{ negative: (result?.totalProfitLoss ?? result?.floatingProfitLoss ?? 0) < 0 }">
-            {{ formatNumber(result?.totalProfitLoss ?? result?.floatingProfitLoss ?? 0, 4) }}
+          <strong :class="{ negative: (result?.totalProfitLoss ?? 0) < 0 }">
+            {{ formatNumber(result?.totalProfitLoss ?? 0, 4) }}
           </strong>
         </div>
         <div class="position-row">

@@ -50,6 +50,9 @@ describe('calculateContractHedgeGrid', () => {
     expect(result.shortScenarioPrice).toBe(168.75);
     expect(result.longScenarioResult.currentPrice).toBe(135);
     expect(result.shortScenarioResult.currentPrice).toBe(168.75);
+    expect(result).not.toHaveProperty('scenarioFloatingProfitLoss');
+    expect(result.longScenarioResult).not.toHaveProperty('floatingProfitLoss');
+    expect(result.shortScenarioResult).not.toHaveProperty('floatingProfitLoss');
   });
 
   it('calculates required margin when the short leg rises toward liquidation', () => {
@@ -161,6 +164,9 @@ describe('calculateContractHedgeGrid', () => {
     expect(result.longScenarioResult.currentNotional).toBe(0);
     expect(result.longScenarioResult.realizedProfitLoss).toBe(100);
     expect(result.longScenarioResult.totalProfitLoss).toBe(100);
+    expect(result.scenarioTotalProfitLoss).toBeCloseTo(
+      result.longScenarioResult.totalProfitLoss + result.shortScenarioResult.totalProfitLoss,
+    );
     expect(result.availableTransferAmount).toBe(100);
   });
 
@@ -178,6 +184,9 @@ describe('calculateContractHedgeGrid', () => {
     expect(result.shortScenarioResult.currentNotional).toBe(0);
     expect(result.shortScenarioResult.realizedProfitLoss).toBeCloseTo(71.4285714286);
     expect(result.shortScenarioResult.totalProfitLoss).toBeCloseTo(71.4285714286);
+    expect(result.scenarioTotalProfitLoss).toBeCloseTo(
+      result.longScenarioResult.totalProfitLoss + result.shortScenarioResult.totalProfitLoss,
+    );
     expect(result.availableTransferAmount).toBeCloseTo(71.4285714286);
   });
 

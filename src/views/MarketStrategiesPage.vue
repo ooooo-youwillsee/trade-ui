@@ -123,7 +123,7 @@ function contractGridCard(item) {
       : [
           ['强平价', formatNumber(calculation.result.estimatedGridLiquidationPrice, 2)],
           ['单格收益', formatPercent(calculation.result.gridProfitRate, 3)],
-          ['浮盈亏', formatNumber(calculation.result.floatingProfitLoss, 2)],
+          ['总收益', formatNumber(calculation.result.totalProfitLoss, 2)],
         ],
   };
 }
@@ -151,7 +151,7 @@ function contractHedgeGridCard(item) {
       : [
           ['需补保证金', formatNumber(calculation.result.requiredMarginAmount, 2)],
           ['资金缺口', formatNumber(calculation.result.marginShortfall, 2)],
-          ['场景盈亏', formatNumber(calculation.result.scenarioFloatingProfitLoss, 2)],
+          ['场景收益', formatNumber(calculation.result.scenarioTotalProfitLoss, 2)],
         ],
   };
 }
