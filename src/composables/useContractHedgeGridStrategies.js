@@ -5,6 +5,7 @@ import { contractHedgeGridPresets, defaultContractHedgeGridInput } from '../stra
 const STORAGE_KEY = 'contract-hedge-grid-strategies';
 const STORAGE_VERSION = 1;
 
+// 对冲网格使用独立单例 store，避免和普通合约网格的草稿、列表互相覆盖。
 let store;
 
 export function useContractHedgeGridStrategies() {
@@ -34,6 +35,7 @@ export function useContractHedgeGridStrategies() {
   const calculation = computed(() => calculateStrategy(form));
   const result = computed(() => calculation.value.result);
   const activeInput = computed(() => calculation.value.input);
+  // 列表页卡片需要批量计算摘要，保存的数据仍保持为用户输入本身。
   const strategySummaries = computed(() =>
     strategies.value.map((strategy) => ({
       strategy,
@@ -139,6 +141,7 @@ export function useContractHedgeGridStrategies() {
 
   function replaceForm(input) {
     const cloned = cloneInput(input);
+    // 两条腿是嵌套对象，替换引用可以让表单控件立即对齐当前策略或预设。
     Object.assign(form, cloned);
     form.longLeg = cloned.longLeg;
     form.shortLeg = cloned.shortLeg;
@@ -183,6 +186,7 @@ function loadStrategies() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     const savedStrategies = Array.isArray(saved) ? saved : saved?.strategies;
     if (Array.isArray(savedStrategies) && savedStrategies.length > 0) {
+      // 读取旧数据时补齐默认字段，后续新增参数不会让历史策略缺字段。
       return savedStrategies.map((strategy) => ({
         ...cloneInput(defaultContractHedgeGridInput),
         ...strategy,
@@ -198,6 +202,7 @@ function loadStrategies() {
 
 function persistStrategies(items) {
   try {
+    // 持久化只写对冲网格自己的 key，和普通合约网格 localStorage 隔离。
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({

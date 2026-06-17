@@ -16,6 +16,7 @@ const props = defineProps({
 
 const openSections = ref([]);
 
+// 顶部总览只展示跨两条腿汇总后的资金压力和可转出收益。
 const summaryMetrics = computed(() => [
   ['需补保证金', formatNumber(props.result?.requiredMarginAmount ?? 0, 2)],
   ['资金缺口', formatNumber(props.result?.marginShortfall ?? 0, 2)],
@@ -46,6 +47,7 @@ const scenarioRows = computed(() => [
   ['空头涨跌幅', formatPercent(props.activeInput?.shortScenarioChangePercent ?? 0, 2)],
 ]);
 
+// 腿部明细固定按多头、空头两组展示，方向由策略计算层保证。
 const legRows = computed(() => [
   {
     key: 'long',
@@ -68,6 +70,7 @@ const legRows = computed(() => [
 ]);
 
 function legMetrics(leg) {
+  // 当前值来自当前网格结果，场景值来自场景推演结果，便于对比仓位变化。
   return [
     ['合约名称', leg.input?.name || '-'],
     ['当前持仓', formatNumber(leg.result?.currentNotional ?? 0, 4)],

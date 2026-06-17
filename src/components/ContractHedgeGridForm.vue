@@ -32,12 +32,14 @@ const props = defineProps({
 
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
 
+// 单格递增沿用普通合约网格的两种模式：按比例或按金额增加每格仓位。
 const incrementModeActions = [
   { text: '比例', value: POSITION_INCREMENT_RATIO },
   { text: '金额', value: POSITION_INCREMENT_DIFFERENCE },
 ];
 
 function incrementModeLabel(mode) {
+  // 金额模式显示 USDT，比例模式显示百分比，减少表单额外说明文字。
   return mode === POSITION_INCREMENT_DIFFERENCE ? 'USDT' : '%';
 }
 

@@ -9,6 +9,7 @@ const router = useRouter();
 const { activeInput, result, selectedStrategy, selectStrategy } = useContractHedgeGridStrategies();
 
 watchEffect(() => {
+  // 详情页只根据路由 id 切换当前策略，计算结果由 store 自动派生。
   selectStrategy(String(route.params.id || ''));
 });
 

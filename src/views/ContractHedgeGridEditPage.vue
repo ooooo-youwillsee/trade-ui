@@ -26,6 +26,7 @@ const {
 const { showNotice } = useNotice();
 
 watchEffect(() => {
+  // 新建路由生成未保存草稿，编辑路由则按 id 选择已有策略。
   if (route.name === 'contract-hedge-grid-new') {
     addStrategy();
     return;
