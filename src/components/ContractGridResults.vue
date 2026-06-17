@@ -83,6 +83,8 @@ const summaryMetrics = computed(() => [
 
 const positionRows = computed(() => [
   ['已成交网格数', String(props.result?.filledGridCount ?? 0)],
+  ['未平仓网格数', String(props.result?.openGridCount ?? 0)],
+  ['已止盈网格数', String(props.result?.closedGridCount ?? 0)],
   ['当前名义持仓', formatNumber(props.result?.currentNotional ?? 0, 4)],
   ['持仓数量', formatNumber(props.result?.positionQuantity ?? 0, 8)],
   ['平均入场价', formatNumber(props.result?.averageEntryPrice ?? 0, 4)],
@@ -204,9 +206,21 @@ function sideTagType(side) {
           <strong>{{ value }}</strong>
         </div>
         <div class="position-row">
-          <span>浮动盈亏</span>
-          <strong :class="{ negative: (result?.floatingProfitLoss ?? 0) < 0 }">
-            {{ formatNumber(result?.floatingProfitLoss ?? 0, 4) }}
+          <span>已实现收益</span>
+          <strong :class="{ negative: (result?.realizedProfitLoss ?? 0) < 0 }">
+            {{ formatNumber(result?.realizedProfitLoss ?? 0, 4) }}
+          </strong>
+        </div>
+        <div class="position-row">
+          <span>未实现收益</span>
+          <strong :class="{ negative: (result?.unrealizedProfitLoss ?? 0) < 0 }">
+            {{ formatNumber(result?.unrealizedProfitLoss ?? 0, 4) }}
+          </strong>
+        </div>
+        <div class="position-row">
+          <span>总收益</span>
+          <strong :class="{ negative: (result?.totalProfitLoss ?? result?.floatingProfitLoss ?? 0) < 0 }">
+            {{ formatNumber(result?.totalProfitLoss ?? result?.floatingProfitLoss ?? 0, 4) }}
           </strong>
         </div>
         <div class="position-row">

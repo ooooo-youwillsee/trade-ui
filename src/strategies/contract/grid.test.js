@@ -207,4 +207,47 @@ describe('calculateContractGrid', () => {
     expect(result.estimatedGridLiquidationPrice).toBe(result.longLeg.liquidationPrice);
     expect(result.liquidationPrice).toBe(result.longLeg.liquidationPrice);
   });
+
+  it('removes closed long open-on-create grids from open position and records realized profit', () => {
+    const result = calculateContractGrid({
+      ...validInput,
+      currentPrice: 175,
+      openOnCreate: true,
+    });
+
+    expect(result.filledGridPrices).toEqual([175, 200]);
+    expect(result.closedGridPrices).toEqual([175]);
+    expect(result.openGridPrices).toEqual([200]);
+    expect(result.currentNotional).toBe(500);
+    expect(result.positionQuantity).toBeCloseTo(3.3333333333);
+    expect(result.averageEntryPrice).toBe(150);
+    expect(result.realizedProfitLoss).toBeCloseTo(83.3333333333);
+    expect(result.unrealizedProfitLoss).toBeCloseTo(83.3333333333);
+    expect(result.totalProfitLoss).toBeCloseTo(166.6666666667);
+    expect(result.floatingProfitLoss).toBe(result.totalProfitLoss);
+    expect(result.liquidationPrice).toBe(90);
+    expect(result.currentEquity).toBeCloseTo(366.6666666667);
+  });
+
+  it('removes closed short open-on-create grids from open position and records realized profit', () => {
+    const result = calculateContractGrid({
+      ...validInput,
+      side: CONTRACT_SIDE_SHORT,
+      currentPrice: 125,
+      openOnCreate: true,
+    });
+
+    expect(result.filledGridPrices).toEqual([100, 125]);
+    expect(result.closedGridPrices).toEqual([125]);
+    expect(result.openGridPrices).toEqual([100]);
+    expect(result.currentNotional).toBe(500);
+    expect(result.positionQuantity).toBeCloseTo(3.3333333333);
+    expect(result.averageEntryPrice).toBe(150);
+    expect(result.realizedProfitLoss).toBeCloseTo(83.3333333333);
+    expect(result.unrealizedProfitLoss).toBeCloseTo(83.3333333333);
+    expect(result.totalProfitLoss).toBeCloseTo(166.6666666667);
+    expect(result.floatingProfitLoss).toBe(result.totalProfitLoss);
+    expect(result.liquidationPrice).toBe(210);
+    expect(result.currentEquity).toBeCloseTo(366.6666666667);
+  });
 });

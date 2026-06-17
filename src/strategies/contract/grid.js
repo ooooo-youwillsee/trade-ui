@@ -39,7 +39,10 @@ export function calculateContractGrid(input) {
   const gridMargins = buildContractGridMargins(input, gridPrices);
   const gridNotionals = gridMargins.map((gridMargin) => gridMargin * input.leverage);
   const filledGridPositions = contractFilledPositions(input, gridPrices);
+  const positionGroups = splitContractPositions(input, filledGridPositions);
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
+  const openGridPrices = positionGroups.openPositions.map((position) => position.gridPrice);
+  const closedGridPrices = positionGroups.closedPositions.map((position) => position.gridPrice);
   const gridOrders = buildGridOrders(
     input.side,
     input.entryPrice,
@@ -48,7 +51,9 @@ export function calculateContractGrid(input) {
     input.leverage,
     filledGridPrices,
   );
-  const position = calculateCurrentPosition(input, filledGridPositions, gridPrices, gridNotionals);
+  const position = calculateCurrentPosition(input, positionGroups.openPositions, gridPrices, gridNotionals);
+  const realizedProfitLoss = realizedGridProfitLoss(positionGroups.closedPositions, gridPrices, gridNotionals);
+  const totalProfitLoss = realizedProfitLoss + position.floatingProfitLoss;
   const longLeg = buildContractLeg(input, CONTRACT_SIDE_LONG, filledGridPositions, gridPrices, gridNotionals);
   const shortLeg = buildContractLeg(input, CONTRACT_SIDE_SHORT, filledGridPositions, gridPrices, gridNotionals);
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
@@ -73,11 +78,19 @@ export function calculateContractGrid(input) {
     gridOrders,
     filledGridCount: filledGridPrices.length,
     filledGridPrices,
+    openGridCount: openGridPrices.length,
+    openGridPrices,
+    closedGridCount: closedGridPrices.length,
+    closedGridPrices,
     filledMargin: position.margin + input.additionalInvestment,
     currentNotional: position.notional,
     positionQuantity: position.quantity,
     averageEntryPrice: position.averageEntryPrice,
-    floatingProfitLoss: position.floatingProfitLoss,
+    realizedProfitLoss,
+    unrealizedProfitLoss: position.floatingProfitLoss,
+    totalProfitLoss,
+    // 兼容旧 UI：floatingProfitLoss 暂时保留为总收益，避免列表和详情页断裂。
+    floatingProfitLoss: totalProfitLoss,
     currentEquity: 0,
     liquidationPrice: 0,
     estimatedGridLiquidationPrice: 0,
@@ -91,7 +104,7 @@ export function calculateContractGrid(input) {
   };
 
   // 当前权益只包含已经成交网格占用的保证金和浮动盈亏。
-  result.currentEquity = result.filledMargin + result.floatingProfitLoss;
+  result.currentEquity = result.filledMargin + result.totalProfitLoss;
   // 估算网格强平价时，用区间极端价格模拟网格全部触发后的仓位。
   const estimatedGridPosition = estimateGridPosition(input, gridPrices, gridNotionals);
   result.estimatedGridLiquidationPrice = estimatedLiquidationPrice(input, result, estimatedGridPosition);
@@ -159,15 +172,53 @@ function contractFilledPositions(input, gridPrices) {
   return [...longPositions, ...shortPositions].sort((left, right) => left.gridPrice - right.gridPrice);
 }
 
+// 将已成交网格拆成未平仓和已止盈：成交由价格穿越判断，达到目标价后只保留收益，不再计入持仓。
+function splitContractPositions(input, positions) {
+  return positions.reduce(
+    (groups, position) => {
+      const side = position.side || input.side;
+      const closed =
+        side === CONTRACT_SIDE_LONG
+          ? input.currentPrice >= position.targetPrice
+          : input.currentPrice <= position.targetPrice;
+      if (closed) groups.closedPositions.push(position);
+      else groups.openPositions.push(position);
+      return groups;
+    },
+    { openPositions: [], closedPositions: [] },
+  );
+}
+
+// 已实现收益只来自已止盈平仓的网格，未实现收益仍由未平仓仓位按当前价计算。
+function realizedGridProfitLoss(positions, gridPrices, gridNotionals) {
+  return positions.reduce((sum, position) => {
+    const notional = gridPositionInvestment(position, gridPrices, gridNotionals);
+    const quantity = notional / position.openPrice;
+    const side = position.side || CONTRACT_SIDE_LONG;
+    if (side === CONTRACT_SIDE_LONG) return sum + (position.targetPrice - position.openPrice) * quantity;
+    if (side === CONTRACT_SIDE_SHORT) return sum + (position.openPrice - position.targetPrice) * quantity;
+    return sum;
+  }, 0);
+}
+
 // 从中性网格的混合仓位中提取单条腿，用于详情页展示独立强平价、仓位和浮盈亏。
 function buildContractLeg(input, side, positions, gridPrices, gridNotionals) {
   const legPositions = positions.filter((position) => position.side === side);
-  const position = calculateCurrentPosition({ ...input, side }, legPositions, gridPrices, gridNotionals);
+  const allPositionGroups = splitContractPositions(input, positions);
+  const positionGroups = splitContractPositions({ ...input, side }, legPositions);
+  const position = calculateCurrentPosition(
+    { ...input, side },
+    positionGroups.openPositions,
+    gridPrices,
+    gridNotionals,
+  );
+  const realizedProfitLoss = realizedGridProfitLoss(positionGroups.closedPositions, gridPrices, gridNotionals);
+  const totalProfitLoss = realizedProfitLoss + position.floatingProfitLoss;
   const additionalMargin = legAdditionalMargin(
     side,
     input.additionalInvestment,
     input.leverage,
-    positions,
+    allPositionGroups.openPositions,
     gridPrices,
     gridNotionals,
   );
@@ -176,12 +227,19 @@ function buildContractLeg(input, side, positions, gridPrices, gridNotionals) {
     side,
     filledGridCount: legPositions.length,
     filledGridPrices: legPositions.map((position) => position.gridPrice),
+    openGridCount: positionGroups.openPositions.length,
+    openGridPrices: positionGroups.openPositions.map((position) => position.gridPrice),
+    closedGridCount: positionGroups.closedPositions.length,
+    closedGridPrices: positionGroups.closedPositions.map((position) => position.gridPrice),
     filledMargin,
     currentNotional: position.notional,
     positionQuantity: position.quantity,
     averageEntryPrice: position.averageEntryPrice,
-    floatingProfitLoss: position.floatingProfitLoss,
-    currentEquity: filledMargin + position.floatingProfitLoss,
+    realizedProfitLoss,
+    unrealizedProfitLoss: position.floatingProfitLoss,
+    totalProfitLoss,
+    floatingProfitLoss: totalProfitLoss,
+    currentEquity: filledMargin + totalProfitLoss,
     liquidationPrice: liquidationPrice(side, position.averageEntryPrice, position.notional, filledMargin),
   };
 }
