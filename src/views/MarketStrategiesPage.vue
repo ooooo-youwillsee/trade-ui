@@ -3,11 +3,12 @@
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog } from 'vant';
-import { Boxes, Flame, Trash2, TrendingDown, TrendingUp } from '@lucide/vue';
+import { ArrowLeftRight, Boxes, Flame, Trash2, TrendingDown, TrendingUp } from '@lucide/vue';
 import { CONTRACT_SIDE_LONG, CONTRACT_SIDE_NEUTRAL } from '../strategies/common/grid';
 import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
 import { useContractMartingaleStrategies } from '../composables/useContractMartingaleStrategies';
 import { useContractGridStrategies } from '../composables/useContractGridStrategies';
+import { useContractHedgeGridStrategies } from '../composables/useContractHedgeGridStrategies';
 import { useNotice } from '../composables/useNotice';
 import { useSpotGridStrategies } from '../composables/useSpotGridStrategies';
 import { useSpotMartingaleStrategies } from '../composables/useSpotMartingaleStrategies';
@@ -23,25 +24,33 @@ const market = computed(() => route.meta.market || 'contract');
 const isContract = computed(() => market.value === 'contract');
 const title = computed(() => (isContract.value ? '合约' : '现货'));
 const contractGridStore = useContractGridStrategies();
+const contractHedgeGridStore = useContractHedgeGridStrategies();
 const contractMartingaleStore = useContractMartingaleStrategies();
 const spotGridStore = useSpotGridStrategies();
 const spotMartingaleStore = useSpotMartingaleStrategies();
 
 // 新增面板根据当前市场动态生成网格和马丁两个动作。
-const addActions = computed(() => [
-  { name: `${title.value}网格`, type: 'grid' },
-  { name: `${title.value}马丁`, type: 'martingale' },
-]);
+const addActions = computed(() => {
+  const actions = [
+    { name: `${title.value}网格`, type: 'grid' },
+    { name: `${title.value}马丁`, type: 'martingale' },
+  ];
+  if (isContract.value) actions.splice(1, 0, { name: '合约对冲网格', type: 'hedge-grid' });
+  return actions;
+});
 
 // 列表卡片统一成同一结构，方便模板用一套布局渲染不同策略类型。
 const cards = computed(() => {
   const gridItems = isContract.value
     ? contractGridStore.strategySummaries.value.map((item) => contractGridCard(item))
     : spotGridStore.strategySummaries.value.map((item) => spotGridCard(item));
+  const hedgeGridItems = isContract.value
+    ? contractHedgeGridStore.strategySummaries.value.map((item) => contractHedgeGridCard(item))
+    : [];
   const martingaleItems = (
     isContract.value ? contractMartingaleStore : spotMartingaleStore
   ).strategySummaries.value.map((item) => martingaleCard(item));
-  return [...gridItems, ...martingaleItems].sort((a, b) => b.updatedAt - a.updatedAt);
+  return [...gridItems, ...hedgeGridItems, ...martingaleItems].sort((a, b) => b.updatedAt - a.updatedAt);
 });
 
 // 根据用户选择创建对应草稿，并跳转到对应新建页。
@@ -55,6 +64,11 @@ function openAdd(action) {
     }
     spotGridStore.addStrategy();
     router.push('/spot/grid/new');
+    return;
+  }
+  if (action.type === 'hedge-grid') {
+    contractHedgeGridStore.addStrategy();
+    router.push('/contract/hedge-grid/new');
     return;
   }
   const martingaleStore = isContract.value ? contractMartingaleStore : spotMartingaleStore;
@@ -110,6 +124,34 @@ function contractGridCard(item) {
           ['强平价', formatNumber(calculation.result.estimatedGridLiquidationPrice, 2)],
           ['单格收益', formatPercent(calculation.result.gridProfitRate, 3)],
           ['浮盈亏', formatNumber(calculation.result.floatingProfitLoss, 2)],
+        ],
+  };
+}
+
+function contractHedgeGridCard(item) {
+  const { strategy, calculation } = item;
+  return {
+    id: strategy.id,
+    updatedAt: strategy.updatedAt || 0,
+    name: strategy.name,
+    typeLabel: '合约对冲网格',
+    icon: ArrowLeftRight,
+    sideIcon: null,
+    sideLabel: `${strategy.longLeg?.name || '多头'} / ${strategy.shortLeg?.name || '空头'}`,
+    sideType: 'primary',
+    detailPath: `/contract/hedge-grid/${strategy.id}`,
+    editPath: `/contract/hedge-grid/${strategy.id}/edit`,
+    remove: () => contractHedgeGridStore.deleteStrategy(strategy.id),
+    metrics: calculation.error
+      ? [
+          ['参数异常', '-'],
+          ['需补', '-'],
+          ['缺口', '-'],
+        ]
+      : [
+          ['需补保证金', formatNumber(calculation.result.requiredMarginAmount, 2)],
+          ['资金缺口', formatNumber(calculation.result.marginShortfall, 2)],
+          ['场景盈亏', formatNumber(calculation.result.scenarioFloatingProfitLoss, 2)],
         ],
   };
 }

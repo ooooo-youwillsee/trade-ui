@@ -1,6 +1,8 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import ContractGridDetailPage from '../views/ContractGridDetailPage.vue';
 import ContractGridEditPage from '../views/ContractGridEditPage.vue';
+import ContractHedgeGridDetailPage from '../views/ContractHedgeGridDetailPage.vue';
+import ContractHedgeGridEditPage from '../views/ContractHedgeGridEditPage.vue';
 import ContractMartingaleDetailPage from '../views/ContractMartingaleDetailPage.vue';
 import ContractMartingaleEditPage from '../views/ContractMartingaleEditPage.vue';
 import MarketStrategiesPage from '../views/MarketStrategiesPage.vue';
@@ -42,6 +44,24 @@ const router = createRouter({
       path: '/contract/grid/:id/edit',
       name: 'contract-grid-edit',
       component: ContractGridEditPage,
+      meta: { tab: 'contract' },
+    },
+    {
+      path: '/contract/hedge-grid/new',
+      name: 'contract-hedge-grid-new',
+      component: ContractHedgeGridEditPage,
+      meta: { tab: 'contract' },
+    },
+    {
+      path: '/contract/hedge-grid/:id',
+      name: 'contract-hedge-grid-detail',
+      component: ContractHedgeGridDetailPage,
+      meta: { tab: 'contract' },
+    },
+    {
+      path: '/contract/hedge-grid/:id/edit',
+      name: 'contract-hedge-grid-edit',
+      component: ContractHedgeGridEditPage,
       meta: { tab: 'contract' },
     },
     // 合约马丁的新建、详情、编辑三段式路由。
