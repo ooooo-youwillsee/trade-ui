@@ -18,6 +18,7 @@ const route = useRoute();
 const router = useRouter();
 const { showNotice } = useNotice();
 const showAddSheet = ref(false);
+const searchKeyword = ref('');
 
 // 当前市场来自路由 meta，合约和现货复用同一个列表页。
 const market = computed(() => route.meta.market || 'contract');
@@ -51,6 +52,13 @@ const cards = computed(() => {
     isContract.value ? contractMartingaleStore : spotMartingaleStore
   ).strategySummaries.value.map((item) => martingaleCard(item));
   return [...gridItems, ...hedgeGridItems, ...martingaleItems].sort((a, b) => b.updatedAt - a.updatedAt);
+});
+const normalizedSearchKeyword = computed(() => searchKeyword.value.trim().toLocaleLowerCase());
+const filteredCards = computed(() => {
+  if (!normalizedSearchKeyword.value) return cards.value;
+  return cards.value.filter((card) =>
+    (card.name || '未命名策略').toLocaleLowerCase().includes(normalizedSearchKeyword.value),
+  );
 });
 
 // 根据用户选择创建对应草稿，并跳转到对应新建页。
@@ -251,13 +259,19 @@ function martingaleCard(item) {
       </template>
     </van-nav-bar>
 
+    <van-search v-model="searchKeyword" class="strategy-search" clearable placeholder="搜索策略名称" shape="round" />
+
     <van-empty v-if="cards.length === 0" :description="`暂无${title}策略`" image="search">
       <van-button round type="primary" @click="showAddSheet = true">创建第一个策略</van-button>
     </van-empty>
 
+    <van-empty v-else-if="filteredCards.length === 0" description="未找到匹配策略" image="search">
+      <van-button round type="primary" @click="searchKeyword = ''">清空搜索</van-button>
+    </van-empty>
+
     <div v-else class="strategy-list">
       <van-cell-group
-        v-for="card in cards"
+        v-for="card in filteredCards"
         :key="`${card.typeLabel}-${card.id}`"
         class="strategy-card"
         inset
@@ -335,6 +349,11 @@ function martingaleCard(item) {
 .nav-add-button {
   min-width: 72px;
   box-shadow: 0 7px 18px rgba(18, 185, 129, 0.24);
+}
+
+.strategy-search {
+  padding: 0;
+  background: transparent;
 }
 
 .strategy-list {
