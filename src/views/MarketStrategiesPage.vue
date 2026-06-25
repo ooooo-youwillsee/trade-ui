@@ -107,7 +107,16 @@ function removeCard(card) {
     .catch(() => {});
 }
 
-// 合约网格卡片保留强平价、单格收益和浮动盈亏三个关键指标。
+// 合约网格卡片在同一行展示入场价、当前价、单格收益和总收益。
+function contractGridMetrics(strategy, calculation) {
+  return [
+    ['入场价', formatNumber(Number(strategy.entryPrice ?? 0), 2)],
+    ['当前价', formatNumber(Number(strategy.currentPrice ?? 0), 2)],
+    ['单格收益', calculation.error ? '-' : formatPercent(calculation.result?.gridProfitRate ?? 0, 3)],
+    ['总收益', calculation.error ? '-' : formatNumber(calculation.result?.totalProfitLoss ?? 0, 2)],
+  ];
+}
+
 function contractGridCard(item) {
   const { strategy, calculation } = item;
   return {
@@ -122,17 +131,8 @@ function contractGridCard(item) {
     detailPath: `/contract/grid/${strategy.id}`,
     editPath: `/contract/grid/${strategy.id}/edit`,
     remove: () => contractGridStore.deleteStrategy(strategy.id),
-    metrics: calculation.error
-      ? [
-          ['参数异常', '-'],
-          ['强平价', '-'],
-          ['收益', '-'],
-        ]
-      : [
-          ['强平价', formatNumber(calculation.result.estimatedGridLiquidationPrice, 2)],
-          ['单格收益', formatPercent(calculation.result.gridProfitRate, 3)],
-          ['总收益', formatNumber(calculation.result.totalProfitLoss, 2)],
-        ],
+    metricColumns: 4,
+    metrics: contractGridMetrics(strategy, calculation),
   };
 }
 
@@ -299,7 +299,11 @@ function martingaleCard(item) {
             </van-tag>
           </template>
         </van-cell>
-        <van-grid :border="false" :column-num="3">
+        <van-grid
+          :class="{ 'contract-grid-metrics': card.metricColumns === 4 }"
+          :border="false"
+          :column-num="card.metricColumns || 3"
+        >
           <van-grid-item v-for="[label, value] in card.metrics" :key="label" :text="label">
             <template #icon>
               <strong class="list-metric">{{ value }}</strong>
@@ -385,5 +389,9 @@ function martingaleCard(item) {
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
   overflow-wrap: anywhere;
+}
+
+.contract-grid-metrics .list-metric {
+  font-size: var(--trade-font-xs);
 }
 </style>
