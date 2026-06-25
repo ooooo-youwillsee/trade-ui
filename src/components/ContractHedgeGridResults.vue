@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { ArrowLeftRight, BarChart3, Boxes, ShieldAlert, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
-import { formatNumber, formatPercent, formatPriceWithReferenceChange } from '../utils/formatters';
+import { formatNumber, formatPercent, formatPriceWithReferenceChange, formatProfitWithRate } from '../utils/formatters';
 
 const props = defineProps({
   activeInput: {
@@ -158,6 +158,7 @@ function legMetrics(leg) {
               <small>{{ leg.result?.gridOrders?.length ?? 0 }} 个挂单</small>
             </div>
           </template>
+          <!-- 对冲两条腿复用普通合约网格的毛净利润口径与紧凑布局。 -->
           <div class="grid-order-list">
             <div
               v-for="order in leg.result?.gridOrders ?? []"
@@ -173,12 +174,18 @@ function legMetrics(leg) {
                 <strong>{{ formatNumber(order.margin, 4) }}</strong>
               </div>
               <div>
-                <span>利润率</span>
-                <strong>{{ formatPercent(order.profitRate, 4) }}</strong>
+                <span>毛利润</span>
+                <strong>{{ formatProfitWithRate(order.grossProfitAmount ?? 0, order.grossProfitRate ?? 0) }}</strong>
               </div>
-              <van-tag :type="order.filled ? 'warning' : 'primary'" round>
-                {{ order.filled ? '已成交' : '未成交' }}
-              </van-tag>
+              <div>
+                <span>净利润</span>
+                <strong>{{ formatProfitWithRate(order.netProfitAmount ?? 0, order.netProfitRate ?? 0) }}</strong>
+              </div>
+              <div class="grid-order-tags">
+                <van-tag :type="order.filled ? 'warning' : 'primary'" round>
+                  {{ order.filled ? '已成交' : '未成交' }}
+                </van-tag>
+              </div>
             </div>
           </div>
         </van-collapse-item>
@@ -354,13 +361,14 @@ function legMetrics(leg) {
 }
 
 .grid-order-row {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) auto;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 1.35fr) minmax(0, 1.35fr);
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: 56px;
   border-bottom: 1px solid var(--trade-border);
-  padding: 10px 0;
+  padding: 36px 0 10px;
 }
 
 .grid-order-row:last-child {
@@ -384,6 +392,24 @@ function legMetrics(leg) {
   font-family: var(--trade-number-font);
   font-weight: var(--trade-weight-strong);
   overflow-wrap: anywhere;
+}
+
+.grid-order-row > div:not(.grid-order-tags) strong {
+  // 四列数值在移动端保持单行，避免金额和括号内收益率被拆开。
+  font-size: var(--trade-font-xs);
+  white-space: nowrap;
+}
+
+.grid-order-row .grid-order-tags {
+  // 成交状态脱离网格列布局，固定在挂单行右上角。
+  position: absolute;
+  top: 8px;
+  right: 0;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
 }
 
 :global(:root[data-theme='dark']) .detail-hero {

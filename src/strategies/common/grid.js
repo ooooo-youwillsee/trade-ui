@@ -107,6 +107,41 @@ export function limitedGridProfitLoss(currentPrice, openPrice, targetPrice, quan
   return 0;
 }
 
+// 单格完整交易按开仓名义金额计算毛利润，并扣除开仓与目标平仓两次手续费。
+// 毛利率和净利率都以开仓名义金额为分母，便于合约与现货使用同一口径比较。
+export function calculateGridOrderProfit(openPrice, targetPrice, openNotional, side, feeRate) {
+  // 边界网格没有下一档止盈价，不构成完整开平仓，因此所有利润字段归零。
+  if (!openPrice || !targetPrice || openPrice === targetPrice || openNotional <= 0) {
+    return {
+      grossProfitAmount: 0,
+      grossProfitRate: 0,
+      netProfitAmount: 0,
+      netProfitRate: 0,
+    };
+  }
+
+  const quantity = openNotional / openPrice;
+  const grossProfitRate =
+    side === CONTRACT_SIDE_LONG
+      ? ((targetPrice - openPrice) / openPrice) * 100
+      : side === CONTRACT_SIDE_SHORT
+        ? ((openPrice - targetPrice) / openPrice) * 100
+        : 0;
+  const grossProfitAmount = (openNotional * grossProfitRate) / 100;
+  // 平仓手续费基于目标价对应的成交名义金额，而不是直接复用开仓名义金额。
+  const targetNotional = quantity * targetPrice;
+  const totalFee = ((openNotional + targetNotional) * feeRate) / 100;
+  const netProfitAmount = grossProfitAmount - totalFee;
+  const netProfitRate = (netProfitAmount / openNotional) * 100;
+
+  return {
+    grossProfitAmount,
+    grossProfitRate,
+    netProfitAmount,
+    netProfitRate,
+  };
+}
+
 // 做多网格向上一个价位止盈，数组末端没有更高价时回落到自身。
 export function nextHigherGridPrice(gridPrices, index) {
   return index + 1 < gridPrices.length ? gridPrices[index + 1] : gridPrices[index];

@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { formatPriceWithReferenceChange, formatSignedPercent } from './formatters';
+import {
+  formatCompactNumber,
+  formatPriceWithReferenceChange,
+  formatProfitWithRate,
+  formatSignedPercent,
+} from './formatters';
+
+describe('compact profit formatting', () => {
+  it('keeps up to four decimals and removes trailing zeros', () => {
+    expect(formatCompactNumber(0.1)).toBe('0.1');
+    expect(formatCompactNumber(0.01234)).toBe('0.0123');
+    expect(formatProfitWithRate(0.1, 10)).toBe('0.1(10%)');
+    expect(formatProfitWithRate(0.01234, 1.23456)).toBe('0.0123(1.2346%)');
+  });
+});
 
 describe('formatSignedPercent', () => {
   it('adds a plus sign for positive percent changes', () => {

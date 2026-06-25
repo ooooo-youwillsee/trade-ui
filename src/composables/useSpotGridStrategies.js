@@ -20,6 +20,7 @@ export const useSpotGridStrategies = createGridStrategyStore({
     'currentPrice',
     'gridCount',
     'investment',
+    'feeRate',
     'positionIncrementValue',
   ],
 });

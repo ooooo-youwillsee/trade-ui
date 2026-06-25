@@ -6,7 +6,7 @@ import {
   GRID_MODE_ARITHMETIC,
   POSITION_INCREMENT_RATIO,
 } from '../common/grid';
-import { calculateContractGrid } from './grid';
+import { calculateContractGrid, normalizeInput } from './grid';
 
 // 合约网格测试重点覆盖保证金、名义价值、强平价和做空收益率。
 describe('calculateContractGrid', () => {
@@ -69,6 +69,7 @@ describe('calculateContractGrid', () => {
     expect(result.gridMargins).toEqual([100, 100, 100, 100]);
     expect(result.filledMargin).toBe(200);
     expect(result.currentNotional).toBe(500);
+    expect(normalizeInput(validInput).feeRate).toBe(0.02);
   });
 
   it('uses the matched grid margin and notional when position increment is enabled', () => {
@@ -97,8 +98,13 @@ describe('calculateContractGrid', () => {
     expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
     expect(result.gridOrders.map((order) => order.margin)).toEqual(result.gridMargins);
     expect(result.gridOrders.map((order) => order.filled)).toEqual([false, true, false, false]);
-    expect(result.gridOrders[1].profitRate).toBe(20);
-    expect(result.gridOrders[1].profitAmount).toBeCloseTo(106.6666666667);
+    expect(result.gridOrders[1]).not.toHaveProperty('profitRate');
+    expect(result.gridOrders[1]).not.toHaveProperty('profitAmount');
+    expect(result.feeRate).toBe(0.02);
+    expect(result.gridOrders[1].grossProfitRate).toBe(20);
+    expect(result.gridOrders[1].grossProfitAmount).toBeCloseTo(106.6666666667);
+    expect(result.gridOrders[1].netProfitAmount).toBeCloseTo(106.432);
+    expect(result.gridOrders[1].netProfitRate).toBeCloseTo(19.956);
   });
 
   it('builds short order rows with per-grid profit rates', () => {
@@ -112,8 +118,36 @@ describe('calculateContractGrid', () => {
     expect(result.gridOrders).toHaveLength(validInput.gridCount);
     expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
     expect(result.gridOrders.map((order) => order.filled)).toEqual([false, false, false, true]);
-    expect(result.gridOrders[3].profitRate).toBeCloseTo(14.2857142857);
-    expect(result.gridOrders[3].profitAmount).toBeCloseTo(71.4285714286);
+    expect(result.gridOrders[3].grossProfitRate).toBeCloseTo(14.2857142857);
+    expect(result.gridOrders[3].grossProfitAmount).toBeCloseTo(71.4285714286);
+    expect(result.gridOrders[3].netProfitAmount).toBeCloseTo(71.2428571429);
+    expect(result.gridOrders[3].netProfitRate).toBeCloseTo(14.2485714286);
+  });
+
+  it('uses an editable fee rate and keeps boundary orders at zero profit', () => {
+    const result = calculateContractGrid({ ...validInput, feeRate: 0.1 });
+    const shortResult = calculateContractGrid({
+      ...validInput,
+      side: CONTRACT_SIDE_SHORT,
+      currentPrice: 175,
+      feeRate: 0.1,
+    });
+
+    expect(result.feeRate).toBe(0.1);
+    expect(result.gridOrders[1].netProfitAmount).toBeCloseTo(98.9);
+    expect(result.gridOrders[1].netProfitRate).toBeCloseTo(19.78);
+    expect(shortResult.gridOrders[0]).toMatchObject({
+      grossProfitAmount: 0,
+      grossProfitRate: 0,
+      netProfitAmount: 0,
+      netProfitRate: 0,
+    });
+  });
+
+  it('rejects invalid fee rates', () => {
+    expect(() => calculateContractGrid({ ...validInput, feeRate: -0.01 })).toThrow('手续费率');
+    expect(() => calculateContractGrid({ ...validInput, feeRate: 100 })).toThrow('手续费率');
+    expect(() => calculateContractGrid({ ...validInput, feeRate: Number.NaN })).toThrow('手续费率');
   });
 
   it('fills the long leg below entry price for a neutral grid', () => {
@@ -190,10 +224,10 @@ describe('calculateContractGrid', () => {
       CONTRACT_SIDE_LONG,
       CONTRACT_SIDE_SHORT,
     ]);
-    expect(result.gridOrders.map((order) => order.profitRate)).toEqual([
+    expect(result.gridOrders.map((order) => order.grossProfitRate)).toEqual([
       25, 20, 16.666666666666664, 14.285714285714285,
     ]);
-    expect(result.gridOrders.map((order) => order.profitAmount)).toEqual([
+    expect(result.gridOrders.map((order) => order.grossProfitAmount)).toEqual([
       125, 100, 83.33333333333331, 71.42857142857142,
     ]);
   });

@@ -53,6 +53,10 @@ describe('calculateContractHedgeGrid', () => {
     expect(result).not.toHaveProperty('scenarioFloatingProfitLoss');
     expect(result.longScenarioResult).not.toHaveProperty('floatingProfitLoss');
     expect(result.shortScenarioResult).not.toHaveProperty('floatingProfitLoss');
+    expect(result.longLegResult.gridOrders[0]).toHaveProperty('grossProfitAmount');
+    expect(result.longLegResult.gridOrders[0]).toHaveProperty('netProfitAmount');
+    expect(result.longLegResult.gridOrders[0]).not.toHaveProperty('profitRate');
+    expect(result.longLegResult.gridOrders[0]).not.toHaveProperty('profitAmount');
   });
 
   it('calculates required margin when the short leg rises toward liquidation', () => {

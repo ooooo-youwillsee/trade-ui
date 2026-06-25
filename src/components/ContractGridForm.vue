@@ -125,6 +125,9 @@ function setIncrementMode(action) {
       <van-field v-model.number="form.leverage" label="杠杆倍数" type="number" input-align="right" />
       <van-field v-model.number="form.investment" label="初始保证金" type="number" input-align="right" />
       <van-field v-model.number="form.additionalInvestment" label="追加保证金" type="number" input-align="right" />
+      <van-field v-model.number="form.feeRate" label="单边手续费率" type="number" input-align="right">
+        <template #button>%</template>
+      </van-field>
       <van-field v-model.number="form.positionIncrementValue" label="单格递增" type="number" input-align="right">
         <template #button>
           <van-popover :actions="incrementModeActions" placement="bottom-end" @select="setIncrementMode">

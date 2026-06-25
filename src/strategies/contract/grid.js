@@ -1,6 +1,7 @@
 import {
   buildGridPrices,
   buildGridPositionInvestments,
+  calculateGridOrderProfit,
   CONTRACT_SIDE_LONG,
   CONTRACT_SIDE_NEUTRAL,
   CONTRACT_SIDE_SHORT,
@@ -14,6 +15,9 @@ import {
   totalYieldRate,
 } from '../common/grid';
 import { aggregateContractPositionEntries, liquidationPrice } from './position';
+
+// 合约手续费率使用百分数语义，0.02 表示单边 0.02%。
+export const DEFAULT_CONTRACT_GRID_FEE_RATE = 0.02;
 
 // 合约网格计算模块：在公共网格算法之上补充杠杆、保证金和强平价逻辑。
 export {
@@ -29,6 +33,8 @@ export {
 // 计算合约网格的完整结果，调用方需先传入已 normalize 的数值字段。
 export function calculateContractGrid(input) {
   validateContractGridInput(input);
+  // 兼容尚未保存 feeRate 的旧策略，缺失时使用合约默认费率。
+  const feeRate = Number(input.feeRate ?? DEFAULT_CONTRACT_GRID_FEE_RATE);
 
   // 保证金和名义价值是合约网格区别于现货网格的核心指标。
   const margin = input.investment + input.additionalInvestment;
@@ -50,6 +56,7 @@ export function calculateContractGrid(input) {
     gridMargins,
     input.leverage,
     filledGridPrices,
+    feeRate,
   );
   const position = calculateCurrentPosition(input, positionGroups.openPositions, gridPrices, gridNotionals);
   const realizedProfitLoss = realizedGridProfitLoss(positionGroups.closedPositions, gridPrices, gridNotionals);
@@ -64,6 +71,7 @@ export function calculateContractGrid(input) {
     name: input.name,
     entryPrice: input.entryPrice,
     currentPrice: input.currentPrice,
+    feeRate,
     gridMode: input.gridMode,
     margin,
     initialMargin: input.investment,
@@ -259,17 +267,18 @@ function legUsedMargin(side, positions, gridPrices, gridNotionals, leverage) {
 }
 
 // 构造挂单展示行，中性模式会把每格标记为做多腿或做空腿。
-function buildGridOrders(side, entryPrice, gridPrices, gridMargins, leverage, filledGridPrices) {
+// gridOrders 只输出明确的 gross/net 字段，不再保留含义模糊的旧 profit 字段。
+function buildGridOrders(side, entryPrice, gridPrices, gridMargins, leverage, filledGridPrices, feeRate) {
   return gridMargins.map((margin, index) => {
     const price = gridPrices[index];
     const orderSide = gridOrderSide(side, entryPrice, price);
-    const profitRate = gridOrderProfitRate(orderSide, gridPrices, index);
+    const targetPrice = orderSide === CONTRACT_SIDE_LONG ? gridPrices[index + 1] : gridPrices[index - 1];
+    const profits = calculateGridOrderProfit(price, targetPrice, margin * leverage, orderSide, feeRate);
     return {
       price,
       margin,
       side: orderSide,
-      profitRate,
-      profitAmount: (margin * leverage * profitRate) / 100,
+      ...profits,
       filled: filledGridPrices.includes(price),
     };
   });
@@ -279,15 +288,6 @@ function buildGridOrders(side, entryPrice, gridPrices, gridMargins, leverage, fi
 function gridOrderSide(side, entryPrice, price) {
   if (side !== CONTRACT_SIDE_NEUTRAL) return side;
   return price > entryPrice ? CONTRACT_SIDE_SHORT : CONTRACT_SIDE_LONG;
-}
-
-function gridOrderProfitRate(side, gridPrices, index) {
-  const price = gridPrices[index];
-  const targetPrice = side === CONTRACT_SIDE_LONG ? gridPrices[index + 1] : gridPrices[index - 1];
-  if (!price || !targetPrice) return 0;
-  if (side === CONTRACT_SIDE_LONG) return ((targetPrice - price) / price) * 100;
-  if (side === CONTRACT_SIDE_SHORT) return ((price - targetPrice) / price) * 100;
-  return 0;
 }
 
 // 将表单字符串显式转换为计算层需要的数字和布尔值。
@@ -305,6 +305,7 @@ export function normalizeInput(rawInput) {
     leverage: Number(rawInput.leverage),
     investment: Number(rawInput.investment),
     additionalInvestment: Number(rawInput.additionalInvestment),
+    feeRate: Number(rawInput.feeRate ?? DEFAULT_CONTRACT_GRID_FEE_RATE),
     positionIncrementMode: rawInput.positionIncrementMode || POSITION_INCREMENT_RATIO,
     positionIncrementValue: Number(rawInput.positionIncrementValue || 0),
   };
@@ -323,6 +324,9 @@ function validateContractGridInput(input) {
   if (input.leverage <= 0) throw new Error('杠杆倍数必须大于 0');
   if (input.investment <= 0) throw new Error('初始保证金必须大于 0');
   if (input.additionalInvestment < 0) throw new Error('追加保证金不能小于 0');
+  // 手续费率允许为 0，但必须是有限数字且不能达到 100%。
+  const feeRate = Number(input.feeRate ?? DEFAULT_CONTRACT_GRID_FEE_RATE);
+  if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate >= 100) throw new Error('手续费率必须大于等于 0 且小于 100');
   if (input.side !== CONTRACT_SIDE_LONG && input.side !== CONTRACT_SIDE_SHORT && input.side !== CONTRACT_SIDE_NEUTRAL) {
     throw new Error('方向必须是做多或做空');
   }

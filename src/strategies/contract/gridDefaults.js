@@ -1,4 +1,9 @@
-import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC, POSITION_INCREMENT_RATIO } from './grid';
+import {
+  CONTRACT_SIDE_LONG,
+  DEFAULT_CONTRACT_GRID_FEE_RATE,
+  GRID_MODE_GEOMETRIC,
+  POSITION_INCREMENT_RATIO,
+} from './grid';
 
 // 合约网格默认表单值：用于首次进入页面和删除最后一个策略后的回填。
 export const defaultContractGridInput = {
@@ -14,6 +19,7 @@ export const defaultContractGridInput = {
   leverage: 10,
   investment: 500,
   additionalInvestment: 0,
+  feeRate: DEFAULT_CONTRACT_GRID_FEE_RATE,
   positionIncrementMode: POSITION_INCREMENT_RATIO,
   positionIncrementValue: 0,
 };
@@ -35,6 +41,7 @@ export const contractGridPresets = [
       leverage: 10,
       investment: 500,
       additionalInvestment: 0,
+      feeRate: DEFAULT_CONTRACT_GRID_FEE_RATE,
       positionIncrementMode: POSITION_INCREMENT_RATIO,
       positionIncrementValue: 0,
       openOnCreate: true,

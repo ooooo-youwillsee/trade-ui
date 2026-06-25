@@ -102,6 +102,9 @@ function setIncrementMode(action) {
     <van-cell-group inset title="资金与网格">
       <van-field v-model.number="form.gridCount" label="网格数量" type="number" input-align="right" />
       <van-field v-model.number="form.investment" label="投入金额" type="number" input-align="right" />
+      <van-field v-model.number="form.feeRate" label="单边手续费率" type="number" input-align="right">
+        <template #button>%</template>
+      </van-field>
       <van-field v-model.number="form.positionIncrementValue" label="单格递增" type="number" input-align="right">
         <template #button>
           <van-popover :actions="incrementModeActions" placement="bottom-end" @select="setIncrementMode">

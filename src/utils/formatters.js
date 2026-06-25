@@ -23,6 +23,19 @@ export function formatSignedPercent(value, digits = 2) {
   return `${prefix}${formattedValue}%`;
 }
 
+// 紧凑数字最多保留四位小数，并移除无意义的末尾零。
+export function formatCompactNumber(value, digits = 4) {
+  if (!Number.isFinite(value)) return '-';
+  return new Intl.NumberFormat('zh-CN', {
+    maximumFractionDigits: digits,
+  }).format(value);
+}
+
+// 网格挂单利润把金额和收益率合并展示，减少移动端列表占用空间。
+export function formatProfitWithRate(amount, rate, digits = 4) {
+  return `${formatCompactNumber(amount, digits)}(${formatCompactNumber(rate, digits)}%)`;
+}
+
 export function formatPriceWithReferenceChange(price, referencePrice, priceDigits = 4, percentDigits = 2) {
   const formattedPrice = formatNumber(price, priceDigits);
   if (!Number.isFinite(referencePrice) || referencePrice <= 0) return formattedPrice;

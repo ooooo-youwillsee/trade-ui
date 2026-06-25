@@ -18,7 +18,7 @@ import {
   POSITION_INCREMENT_DIFFERENCE,
 } from '../strategies/common/grid';
 import { getHealth } from '../composables/useContractGridStrategies';
-import { formatNumber, formatPercent, formatPriceWithReferenceChange } from '../utils/formatters';
+import { formatNumber, formatPercent, formatPriceWithReferenceChange, formatProfitWithRate } from '../utils/formatters';
 
 // activeInput 用于展示输入摘要，result 用于展示计算结果。
 const props = defineProps({
@@ -119,6 +119,7 @@ const inputRows = computed(() => [
   ['杠杆倍数', `${formatNumber(props.activeInput?.leverage ?? 0, 2)}x`],
   ['初始保证金', formatNumber(props.activeInput?.investment ?? 0, 2)],
   ['追加保证金', formatNumber(props.activeInput?.additionalInvestment ?? 0, 2)],
+  ['单边手续费率', formatPercent(props.activeInput?.feeRate ?? 0, 4)],
   ['仓位递增', incrementLabel.value],
 ]);
 
@@ -242,6 +243,7 @@ function sideTagType(side) {
               <small>{{ result?.gridOrders?.length ?? 0 }} 个挂单</small>
             </div>
           </template>
+          <!-- 单格利润合并展示金额和比率，状态标签固定在右上角避免挤压四列数据。 -->
           <div class="grid-order-list">
             <div v-for="order in result?.gridOrders ?? []" :key="order.price" class="grid-order-row">
               <div>
@@ -252,18 +254,20 @@ function sideTagType(side) {
                 <span>保证金</span>
                 <strong>{{ formatNumber(order.margin, 4) }}</strong>
               </div>
-              <div>
-                <span>利润率</span>
-                <strong>{{ formatPercent(order.profitRate, 4) }}</strong>
+              <div class="profit-cell">
+                <span>毛利润</span>
+                <strong>{{ formatProfitWithRate(order.grossProfitAmount ?? 0, order.grossProfitRate ?? 0) }}</strong>
               </div>
-              <div>
-                <span>收益额</span>
-                <strong>{{ formatNumber(order.profitAmount ?? 0, 4) }}</strong>
+              <div class="profit-cell">
+                <span>净利润</span>
+                <strong>{{ formatProfitWithRate(order.netProfitAmount ?? 0, order.netProfitRate ?? 0) }}</strong>
               </div>
-              <van-tag :type="sideTagType(order.side)" round>{{ sideText(order.side) }}</van-tag>
-              <van-tag :type="order.filled ? 'warning' : 'primary'" round>
-                {{ order.filled ? '已成交' : '未成交' }}
-              </van-tag>
+              <div class="grid-order-tags">
+                <van-tag :type="sideTagType(order.side)" round>{{ sideText(order.side) }}</van-tag>
+                <van-tag :type="order.filled ? 'warning' : 'primary'" round>
+                  {{ order.filled ? '已成交' : '未成交' }}
+                </van-tag>
+              </div>
             </div>
           </div>
         </van-collapse-item>
@@ -508,13 +512,14 @@ function sideTagType(side) {
 }
 
 .grid-order-row {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.8fr) auto auto;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.7fr) minmax(0, 1.35fr) minmax(0, 1.35fr);
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-height: 56px;
   border-bottom: 1px solid var(--trade-border);
-  padding: 10px 0;
+  padding: 36px 0 10px;
 }
 
 .grid-order-row:last-child {
@@ -538,6 +543,24 @@ function sideTagType(side) {
   font-family: var(--trade-number-font);
   font-weight: var(--trade-weight-strong);
   overflow-wrap: anywhere;
+}
+
+.grid-order-row > div:not(.grid-order-tags) strong {
+  // 四列数值在移动端保持单行，避免金额和括号内收益率被拆开。
+  font-size: var(--trade-font-xs);
+  white-space: nowrap;
+}
+
+.grid-order-row .grid-order-tags {
+  // 方向与成交状态脱离网格列布局，固定在挂单行右上角。
+  position: absolute;
+  top: 8px;
+  right: 0;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 100%;
 }
 
 :global(:root[data-theme='dark']) .detail-hero {
