@@ -4,15 +4,14 @@ import {
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
+  normalizeMinTradeQuantity,
   nextHigherGridPrice,
   nextLowerGridPrice,
-  POSITION_INCREMENT_DIFFERENCE,
-  POSITION_INCREMENT_RATIO,
 } from '../common/grid';
 import { calculateContractGrid } from './grid';
 import { aggregateContractPositionEntries, liquidationPrice } from './position';
 
-export { GRID_MODE_ARITHMETIC, GRID_MODE_GEOMETRIC, POSITION_INCREMENT_DIFFERENCE, POSITION_INCREMENT_RATIO };
+export { GRID_MODE_ARITHMETIC, GRID_MODE_GEOMETRIC };
 
 export function calculateContractHedgeGrid(input) {
   // 两条腿固定方向：多头腿只做多，空头腿只做空，避免表单方向污染计算口径。
@@ -83,8 +82,7 @@ function normalizeLegInput(rawLeg = {}) {
     leverage: Number(rawLeg.leverage),
     investment: Number(rawLeg.investment),
     additionalInvestment: Number(rawLeg.additionalInvestment),
-    positionIncrementMode: rawLeg.positionIncrementMode || POSITION_INCREMENT_RATIO,
-    positionIncrementValue: Number(rawLeg.positionIncrementValue || 0),
+    minTradeQuantity: normalizeMinTradeQuantity(rawLeg.minTradeQuantity, rawLeg.name),
   };
 }
 
@@ -109,7 +107,8 @@ function calculateFavorableScenarioLeg(input, currentResult, nextPrice) {
   // 顺势场景从当前未平仓网格出发，只处理止盈平仓，不新增逆势仓位。
   const gridPrices = buildGridPrices(input.lowerPrice, input.upperPrice, input.gridCount, input.gridMode);
   const openPositions = currentResult.openGridPrices.map((gridPrice) =>
-    buildScenarioPosition(input, gridPrice, gridPrices, currentResult.gridNotionals),
+    // 场景推演沿用当前腿的固定单格数量，收益和保证金不能再从旧的固定金额反推。
+    buildScenarioPosition(input, gridPrice, gridPrices, currentResult.tradablePerGridQuantity),
   );
   const {
     openPositions: nextOpenPositions,
@@ -188,9 +187,8 @@ function isFavorableMove(side, currentPrice, nextPrice) {
   return side === CONTRACT_SIDE_LONG ? nextPrice > currentPrice : nextPrice < currentPrice;
 }
 
-function buildScenarioPosition(input, gridPrice, gridPrices, gridNotionals) {
+function buildScenarioPosition(input, gridPrice, gridPrices, quantity) {
   const priceIndex = gridPrices.findIndex((price) => price === gridPrice);
-  const notional = gridNotionals[Math.min(Math.max(priceIndex, 0), gridNotionals.length - 1)] || 0;
   // 创建时建仓的初始仓位按入场价成交，目标价是对应网格价。
   const openedOnCreate =
     input.openOnCreate &&
@@ -206,8 +204,9 @@ function buildScenarioPosition(input, gridPrice, gridPrices, gridNotionals) {
     gridPrice,
     openPrice,
     targetPrice,
-    notional,
-    quantity: notional / openPrice,
+    // 名义价值使用实际开仓价，保证场景收益和强平估算与固定数量口径一致。
+    notional: quantity * openPrice,
+    quantity,
   };
 }
 

@@ -219,7 +219,13 @@ function loadStrategies(storageKey, defaultInput) {
     const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
     const savedStrategies = Array.isArray(saved) ? saved : saved?.strategies;
     if (Array.isArray(savedStrategies) && savedStrategies.length > 0) {
-      return savedStrategies.map((strategy) => ({ ...defaultInput, ...strategy }));
+      return savedStrategies.map((strategy) => ({
+        ...defaultInput,
+        ...strategy,
+        ...(!Object.prototype.hasOwnProperty.call(strategy, 'minTradeQuantity')
+          ? { minTradeQuantity: undefined }
+          : {}),
+      }));
     }
   } catch {
     localStorage.removeItem(storageKey);

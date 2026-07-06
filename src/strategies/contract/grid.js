@@ -1,6 +1,5 @@
 import {
   buildGridPrices,
-  buildGridPositionInvestments,
   calculateGridOrderProfit,
   CONTRACT_SIDE_LONG,
   CONTRACT_SIDE_NEUTRAL,
@@ -9,10 +8,9 @@ import {
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
   gridProfitRate,
-  gridPositionInvestment,
-  POSITION_INCREMENT_DIFFERENCE,
-  POSITION_INCREMENT_RATIO,
+  normalizeMinTradeQuantity,
   totalYieldRate,
+  validateMinimumTradeQuantity,
 } from '../common/grid';
 import { aggregateContractPositionEntries, liquidationPrice } from './position';
 
@@ -26,12 +24,14 @@ export {
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
-  POSITION_INCREMENT_DIFFERENCE,
-  POSITION_INCREMENT_RATIO,
 };
 
 // 计算合约网格的完整结果，调用方需先传入已 normalize 的数值字段。
 export function calculateContractGrid(input) {
+  input = {
+    ...input,
+    minTradeQuantity: normalizeMinTradeQuantity(input.minTradeQuantity, input.name),
+  };
   validateContractGridInput(input);
   // 兼容尚未保存 feeRate 的旧策略，缺失时使用合约默认费率。
   const feeRate = Number(input.feeRate ?? DEFAULT_CONTRACT_GRID_FEE_RATE);
@@ -41,9 +41,21 @@ export function calculateContractGrid(input) {
   const notional = input.investment * input.leverage;
   const perGridMargin = input.investment / input.gridCount;
   const perGridNotional = notional / input.gridCount;
+  const minimumTradeCheck = validateMinimumTradeQuantity({
+    gridCount: input.gridCount,
+    investment: input.investment,
+    leverage: input.leverage,
+    minTradeQuantity: input.minTradeQuantity,
+    upperPrice: input.upperPrice,
+    investmentLabel: '保证金',
+  });
   const gridPrices = buildGridPrices(input.lowerPrice, input.upperPrice, input.gridCount, input.gridMode);
-  const gridMargins = buildContractGridMargins(input, gridPrices);
-  const gridNotionals = gridMargins.map((gridMargin) => gridMargin * input.leverage);
+  const gridNotionals = buildQuantityBasedNotionals(
+    gridPrices,
+    input.gridCount,
+    minimumTradeCheck.tradablePerGridQuantity,
+  );
+  const gridMargins = gridNotionals.map((gridNotional) => gridNotional / input.leverage);
   const filledGridPositions = contractFilledPositions(input, gridPrices);
   const positionGroups = splitContractPositions(input, filledGridPositions);
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
@@ -53,16 +65,33 @@ export function calculateContractGrid(input) {
     input.side,
     input.entryPrice,
     gridPrices,
-    gridMargins,
+    minimumTradeCheck.tradablePerGridQuantity,
     input.leverage,
     filledGridPrices,
     feeRate,
   );
-  const position = calculateCurrentPosition(input, positionGroups.openPositions, gridPrices, gridNotionals);
-  const realizedProfitLoss = realizedGridProfitLoss(positionGroups.closedPositions, gridPrices, gridNotionals);
+  const position = calculateCurrentPosition(
+    input,
+    positionGroups.openPositions,
+    minimumTradeCheck.tradablePerGridQuantity,
+  );
+  const realizedProfitLoss = realizedGridProfitLoss(
+    positionGroups.closedPositions,
+    minimumTradeCheck.tradablePerGridQuantity,
+  );
   const totalProfitLoss = realizedProfitLoss + position.floatingProfitLoss;
-  const longLeg = buildContractLeg(input, CONTRACT_SIDE_LONG, filledGridPositions, gridPrices, gridNotionals);
-  const shortLeg = buildContractLeg(input, CONTRACT_SIDE_SHORT, filledGridPositions, gridPrices, gridNotionals);
+  const longLeg = buildContractLeg(
+    input,
+    CONTRACT_SIDE_LONG,
+    filledGridPositions,
+    minimumTradeCheck.tradablePerGridQuantity,
+  );
+  const shortLeg = buildContractLeg(
+    input,
+    CONTRACT_SIDE_SHORT,
+    filledGridPositions,
+    minimumTradeCheck.tradablePerGridQuantity,
+  );
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
   const gridRatio = input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
 
@@ -76,11 +105,17 @@ export function calculateContractGrid(input) {
     margin,
     initialMargin: input.investment,
     additionalInvestment: input.additionalInvestment,
-    positionIncrementMode: input.positionIncrementMode,
-    positionIncrementValue: input.positionIncrementValue,
+    minTradeQuantity: minimumTradeCheck.minTradeQuantity,
     notional,
     perGridMargin,
     perGridNotional,
+    minimumPerGridQuantity: minimumTradeCheck.minimumPerGridQuantity,
+    tradableGridUnits: minimumTradeCheck.tradableGridUnits,
+    tradablePerGridQuantity: minimumTradeCheck.tradablePerGridQuantity,
+    tradablePerGridMargin: minimumTradeCheck.tradablePerGridInvestment,
+    unallocatedMargin: minimumTradeCheck.unallocatedInvestment,
+    maxGridCountByMinTradeQuantity: minimumTradeCheck.maxGridCountByMinTradeQuantity,
+    minimumRequiredInvestment: minimumTradeCheck.minimumRequiredInvestment,
     gridMargins,
     gridNotionals,
     gridOrders,
@@ -112,7 +147,7 @@ export function calculateContractGrid(input) {
   // 当前权益只包含已经成交网格占用的保证金和浮动盈亏。
   result.currentEquity = result.filledMargin + result.totalProfitLoss;
   // 估算网格强平价时，用区间极端价格模拟网格全部触发后的仓位。
-  const estimatedGridPosition = estimateGridPosition(input, gridPrices, gridNotionals);
+  const estimatedGridPosition = estimateGridPosition(input, gridPrices, minimumTradeCheck.tradablePerGridQuantity);
   result.estimatedGridLiquidationPrice = estimatedLiquidationPrice(input, result, estimatedGridPosition);
   result.gridProfitRate = contractGridProfitRate(input.side, gridStep, gridRatio, gridPrices, input.gridMode);
   result.totalYieldRate = totalYieldRate(input.side, input.lowerPrice, input.upperPrice);
@@ -128,37 +163,9 @@ export function calculateContractGrid(input) {
   return result;
 }
 
-// 中性网格需要按价格方向选择仓位权重：入场价下方沿用多头分配，上方沿用空头分配。
-function buildContractGridMargins(input, gridPrices) {
-  if (input.side !== CONTRACT_SIDE_NEUTRAL) {
-    return buildGridPositionInvestments(
-      input.investment,
-      input.gridCount,
-      input.side,
-      input.positionIncrementMode,
-      input.positionIncrementValue,
-    );
-  }
-
-  const longMargins = buildGridPositionInvestments(
-    input.investment,
-    input.gridCount,
-    CONTRACT_SIDE_LONG,
-    input.positionIncrementMode,
-    input.positionIncrementValue,
-  );
-  const shortMargins = buildGridPositionInvestments(
-    input.investment,
-    input.gridCount,
-    CONTRACT_SIDE_SHORT,
-    input.positionIncrementMode,
-    input.positionIncrementValue,
-  );
-
-  return Array.from({ length: input.gridCount }, (_, index) => {
-    const price = gridPrices[index];
-    return price > input.entryPrice ? shortMargins[index] : longMargins[index];
-  });
+// 固定每格成交数量，名义价值和保证金按该格价格反推，保证每个网格数量一致。
+function buildQuantityBasedNotionals(gridPrices, gridCount, quantity) {
+  return gridPrices.slice(0, gridCount).map((price) => quantity * price);
 }
 
 // 为合约网格成交仓位补充 side 字段，中性模式会同时合并多腿和空腿成交结果。
@@ -196,10 +203,9 @@ function splitContractPositions(input, positions) {
 }
 
 // 已实现收益只来自已止盈平仓的网格，未实现收益仍由未平仓仓位按当前价计算。
-function realizedGridProfitLoss(positions, gridPrices, gridNotionals) {
+function realizedGridProfitLoss(positions, quantity) {
   return positions.reduce((sum, position) => {
-    const notional = gridPositionInvestment(position, gridPrices, gridNotionals);
-    const quantity = notional / position.openPrice;
+    // 已平仓收益只看固定数量和实际开/平仓价，不再从固定保证金反推数量。
     const side = position.side || CONTRACT_SIDE_LONG;
     if (side === CONTRACT_SIDE_LONG) return sum + (position.targetPrice - position.openPrice) * quantity;
     if (side === CONTRACT_SIDE_SHORT) return sum + (position.openPrice - position.targetPrice) * quantity;
@@ -208,25 +214,23 @@ function realizedGridProfitLoss(positions, gridPrices, gridNotionals) {
 }
 
 // 从中性网格的混合仓位中提取单条腿，用于详情页展示独立强平价、仓位和浮盈亏。
-function buildContractLeg(input, side, positions, gridPrices, gridNotionals) {
+function buildContractLeg(input, side, positions, quantity) {
   const legPositions = positions.filter((position) => position.side === side);
   const allPositionGroups = splitContractPositions(input, positions);
   const positionGroups = splitContractPositions({ ...input, side }, legPositions);
   const position = calculateCurrentPosition(
     { ...input, side },
     positionGroups.openPositions,
-    gridPrices,
-    gridNotionals,
+    quantity,
   );
-  const realizedProfitLoss = realizedGridProfitLoss(positionGroups.closedPositions, gridPrices, gridNotionals);
+  const realizedProfitLoss = realizedGridProfitLoss(positionGroups.closedPositions, quantity);
   const totalProfitLoss = realizedProfitLoss + position.floatingProfitLoss;
   const additionalMargin = legAdditionalMargin(
     side,
     input.additionalInvestment,
     input.leverage,
     allPositionGroups.openPositions,
-    gridPrices,
-    gridNotionals,
+    quantity,
   );
   const filledMargin = position.margin + additionalMargin;
   return {
@@ -250,33 +254,38 @@ function buildContractLeg(input, side, positions, gridPrices, gridNotionals) {
 }
 
 // 追加保证金按两条腿当前已占用保证金比例分摊，未形成仓位时两边均分。
-function legAdditionalMargin(side, additionalInvestment, leverage, positions, gridPrices, gridNotionals) {
+function legAdditionalMargin(side, additionalInvestment, leverage, positions, quantity) {
   if (additionalInvestment <= 0) return 0;
-  const longMargin = legUsedMargin(CONTRACT_SIDE_LONG, positions, gridPrices, gridNotionals, leverage);
-  const shortMargin = legUsedMargin(CONTRACT_SIDE_SHORT, positions, gridPrices, gridNotionals, leverage);
+  const longMargin = legUsedMargin(CONTRACT_SIDE_LONG, positions, quantity, leverage);
+  const shortMargin = legUsedMargin(CONTRACT_SIDE_SHORT, positions, quantity, leverage);
   const totalMargin = longMargin + shortMargin;
   if (totalMargin === 0) return additionalInvestment / 2;
   return (additionalInvestment * (side === CONTRACT_SIDE_LONG ? longMargin : shortMargin)) / totalMargin;
 }
 
 // 统计指定腿已成交网格实际占用的保证金，用于追加保证金比例分配。
-function legUsedMargin(side, positions, gridPrices, gridNotionals, leverage) {
+function legUsedMargin(side, positions, quantity, leverage) {
   return positions
     .filter((position) => position.side === side)
-    .reduce((sum, position) => sum + gridPositionInvestment(position, gridPrices, gridNotionals) / leverage, 0);
+    // 追加保证金按实际开仓价对应的已用保证金分摊，和订单挂单价无关。
+    .reduce((sum, position) => sum + (quantity * position.openPrice) / leverage, 0);
 }
 
 // 构造挂单展示行，中性模式会把每格标记为做多腿或做空腿。
 // gridOrders 只输出明确的 gross/net 字段，不再保留含义模糊的旧 profit 字段。
-function buildGridOrders(side, entryPrice, gridPrices, gridMargins, leverage, filledGridPrices, feeRate) {
-  return gridMargins.map((margin, index) => {
-    const price = gridPrices[index];
+function buildGridOrders(side, entryPrice, gridPrices, quantity, leverage, filledGridPrices, feeRate) {
+  return gridPrices.slice(0, -1).map((price, index) => {
+    // 合约订单先确定统一数量，再由价格得到名义价值和保证金。
+    const notional = quantity * price;
+    const margin = notional / leverage;
     const orderSide = gridOrderSide(side, entryPrice, price);
     const targetPrice = orderSide === CONTRACT_SIDE_LONG ? gridPrices[index + 1] : gridPrices[index - 1];
-    const profits = calculateGridOrderProfit(price, targetPrice, margin * leverage, orderSide, feeRate);
+    const profits = calculateGridOrderProfit(price, targetPrice, notional, orderSide, feeRate);
     return {
       price,
+      quantity,
       margin,
+      notional,
       side: orderSide,
       ...profits,
       filled: filledGridPrices.includes(price),
@@ -306,8 +315,7 @@ export function normalizeInput(rawInput) {
     investment: Number(rawInput.investment),
     additionalInvestment: Number(rawInput.additionalInvestment),
     feeRate: Number(rawInput.feeRate ?? DEFAULT_CONTRACT_GRID_FEE_RATE),
-    positionIncrementMode: rawInput.positionIncrementMode || POSITION_INCREMENT_RATIO,
-    positionIncrementValue: Number(rawInput.positionIncrementValue || 0),
+    minTradeQuantity: normalizeMinTradeQuantity(rawInput.minTradeQuantity, rawInput.name),
   };
 }
 
@@ -368,7 +376,7 @@ function contractGridProfitRate(side, gridStep, gridRatio, gridPrices, gridMode)
   );
 }
 
-function estimateGridPosition(input, gridPrices, gridNotionals) {
+function estimateGridPosition(input, gridPrices, quantity) {
   const estimatedInput = {
     ...input,
     currentPrice: input.side === CONTRACT_SIDE_LONG ? input.lowerPrice : input.upperPrice,
@@ -376,20 +384,19 @@ function estimateGridPosition(input, gridPrices, gridNotionals) {
   return calculateCurrentPosition(
     estimatedInput,
     filledPositions(estimatedInput, gridPrices),
-    gridPrices,
-    gridNotionals,
+    quantity,
   );
 }
 
 // 合约仓位按每格名义价值累计，均价由名义价值和数量反推。
-function calculateCurrentPosition(input, positions, gridPrices, gridNotionals) {
+function calculateCurrentPosition(input, positions, quantity) {
   const entries = positions.map((filled) => {
-    const notional = gridPositionInvestment(filled, gridPrices, gridNotionals);
     return {
       side: filled.side || input.side,
       openPrice: filled.openPrice,
       targetPrice: filled.targetPrice,
-      notional,
+      // 持仓按实际成交价占用名义价值，避免创建即建仓时沿用网格目标价。
+      notional: quantity * filled.openPrice,
     };
   });
   // 公共聚合函数只关心未平仓 entry，调用方负责提前完成成交/止盈拆分。

@@ -29,7 +29,7 @@ export const useContractGridStrategies = createGridStrategyStore({
     'investment',
     'additionalInvestment',
     'feeRate',
-    'positionIncrementValue',
+    'minTradeQuantity',
   ],
 });
 

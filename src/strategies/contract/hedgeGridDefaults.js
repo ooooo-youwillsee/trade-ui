@@ -1,4 +1,4 @@
-import { GRID_MODE_GEOMETRIC, POSITION_INCREMENT_RATIO } from './hedgeGrid';
+import { GRID_MODE_GEOMETRIC } from './hedgeGrid';
 
 // 默认多头腿只是前端示例参数，实际方向会在计算层固定为 long。
 const defaultLongLeg = {
@@ -13,8 +13,7 @@ const defaultLongLeg = {
   leverage: 10,
   investment: 500,
   additionalInvestment: 0,
-  positionIncrementMode: POSITION_INCREMENT_RATIO,
-  positionIncrementValue: 0,
+  minTradeQuantity: 0.001,
 };
 
 // 默认空头腿只是前端示例参数，实际方向会在计算层固定为 short。
@@ -30,8 +29,7 @@ const defaultShortLeg = {
   leverage: 10,
   investment: 500,
   additionalInvestment: 0,
-  positionIncrementMode: POSITION_INCREMENT_RATIO,
-  positionIncrementValue: 0,
+  minTradeQuantity: 0.0001,
 };
 
 export const defaultContractHedgeGridInput = {

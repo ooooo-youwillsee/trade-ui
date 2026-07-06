@@ -2,7 +2,7 @@
 // 现货网格结果组件：展示持仓均价、浮盈浮亏、网格价格和收益率。
 import { computed, ref } from 'vue';
 import { BarChart3, Boxes, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
-import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC, POSITION_INCREMENT_DIFFERENCE } from '../strategies/common/grid';
+import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from '../strategies/common/grid';
 import { formatNumber, formatPercent, formatPriceWithReferenceChange, formatProfitWithRate } from '../utils/formatters';
 
 // activeInput 和 result 分离，便于结果缺失时仍可展示输入相关状态。
@@ -14,12 +14,6 @@ const props = defineProps({
 const activeGridSections = ref([]);
 const sideLabel = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? TrendingUp : TrendingDown));
-const incrementLabel = computed(() => {
-  if (props.activeInput?.positionIncrementMode === POSITION_INCREMENT_DIFFERENCE) {
-    return `差额递增 ${formatNumber(props.activeInput?.positionIncrementValue ?? 0, 2)}`;
-  }
-  return `比例递增 ${formatPercent(props.activeInput?.positionIncrementValue ?? 0, 2)}`;
-});
 const inputRows = computed(() => [
   ['策略名称', props.activeInput?.name || '-'],
   ['方向', sideLabel.value],
@@ -41,13 +35,15 @@ const inputRows = computed(() => [
   ['网格数量', String(props.activeInput?.gridCount ?? '-')],
   ['投入金额', formatNumber(props.activeInput?.investment ?? 0, 2)],
   ['单边手续费率', formatPercent(props.activeInput?.feeRate ?? 0, 4)],
-  ['仓位递增', incrementLabel.value],
+  ['最小成交数量', formatNumber(props.activeInput?.minTradeQuantity ?? 0, 8)],
 ]);
 const summaryMetrics = computed(() => [
   ['持仓均价', formatNumber(props.result?.averageEntryPrice ?? 0, 4)],
   ['当前权益', formatNumber(props.result?.currentEquity ?? 0, 4)],
   ['浮动盈亏', formatNumber(props.result?.floatingProfitLoss ?? 0, 4)],
   ['持仓数量', formatNumber(props.result?.positionQuantity ?? 0, 8)],
+  ['实际单格数量', formatNumber(props.result?.tradablePerGridQuantity ?? 0, 8)],
+  ['未分配金额', formatNumber(props.result?.unallocatedInvestment ?? 0, 4)],
   ['单格收益率', formatPercent(props.result?.gridProfitRate ?? 0, 4)],
   ['区间振幅', formatPercent(props.result?.totalYieldRate ?? 0, 4)],
 ]);

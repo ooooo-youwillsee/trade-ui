@@ -3,7 +3,6 @@ import {
   CONTRACT_SIDE_LONG,
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
-  POSITION_INCREMENT_RATIO,
 } from '../common/grid';
 import { calculateSpotGrid, normalizeSpotGridInput } from './grid';
 
@@ -30,61 +29,80 @@ describe('calculateSpotGrid', () => {
     expect(result.perGridInvestment).toBe(100);
     expect(result.filledGridCount).toBe(1);
     expect(result.filledGridPrices).toEqual([125]);
-    expect(result.positionQuantity).toBe(0.8);
+    expect(result.positionQuantity).toBe(0.5);
     expect(result.averageEntryPrice).toBe(125);
     expect(result.floatingProfitLoss).toBe(0);
-    expect(result.currentEquity).toBe(100);
+    expect(result.currentEquity).toBe(62.5);
     expect(result.gridProfitRate).toBe(25);
     expect(result.totalYieldRate).toBe(100);
   });
 
-  it('keeps old inputs compatible when increment fields are omitted', () => {
+  it('keeps old inputs compatible when optional fields are omitted', () => {
     const result = calculateSpotGrid(validInput);
 
-    expect(result.positionIncrementMode).toBeUndefined();
-    expect(result.positionIncrementValue).toBeUndefined();
-    expect(result.filledInvestment).toBe(100);
-    expect(result.gridInvestments).toEqual([100, 100, 100, 100]);
+    expect(result.minTradeQuantity).toBe(0.01);
+    expect(result.filledInvestment).toBe(62.5);
+    expect(result.gridInvestments).toEqual([50, 62.5, 75, 87.5]);
     expect(normalizeSpotGridInput(validInput).feeRate).toBe(0.1);
   });
 
-  it('uses the matched grid investment when position increment is enabled', () => {
+  it('infers ETH minimum trade quantity when the field is omitted', () => {
+    expect(normalizeSpotGridInput({ ...validInput, name: 'ETH spot grid' }).minTradeQuantity).toBe(0.001);
+  });
+
+  it('allows a grid when fixed per-grid investment satisfies the minimum trade quantity at the highest price', () => {
     const result = calculateSpotGrid({
       ...validInput,
-      positionIncrementMode: POSITION_INCREMENT_RATIO,
-      positionIncrementValue: 100,
+      investment: 20,
+      gridCount: 4,
+      upperPrice: 200,
+      currentPrice: 100,
+      minTradeQuantity: 0.01,
     });
 
-    expect(result.gridInvestments.reduce((sum, amount) => sum + amount, 0)).toBeCloseTo(400);
-    expect(result.gridInvestments[0]).toBeGreaterThan(result.gridInvestments[3]);
-    expect(result.filledInvestment).toBeCloseTo(106.6666666667);
-    expect(result.positionQuantity).toBeCloseTo(0.8533333333);
-    expect(result.averageEntryPrice).toBe(125);
+    expect(result.perGridInvestment).toBe(5);
+    expect(result.minimumPerGridQuantity).toBe(0.025);
+    expect(result.tradableGridUnits).toBe(2);
+    expect(result.tradablePerGridQuantity).toBe(0.02);
+    expect(result.tradablePerGridInvestment).toBe(4);
+    expect(result.unallocatedInvestment).toBe(4);
+    expect(result.gridOrders.map((order) => order.quantity)).toEqual([0.02, 0.02, 0.02, 0.02]);
+    expect(result.gridInvestments).toEqual([2, 2.5, 3, 3.5]);
+    expect(result.gridOrders.map((order) => order.investment)).toEqual(result.gridInvestments);
+  });
+
+  it('rejects a grid when fixed per-grid investment is below the minimum trade quantity at the highest price', () => {
+    expect(() =>
+      calculateSpotGrid({
+        ...validInput,
+        investment: 100,
+        gridCount: 4,
+        upperPrice: 200,
+        minTradeQuantity: 0.2,
+      }),
+    ).toThrow(/最小成交数量.*最大网格数.*最低投入/);
   });
 
   it('builds order rows with price, investment, and filled status', () => {
-    const result = calculateSpotGrid({
-      ...validInput,
-      positionIncrementMode: POSITION_INCREMENT_RATIO,
-      positionIncrementValue: 100,
-    });
+    const result = calculateSpotGrid(validInput);
 
     expect(result.gridOrders).toHaveLength(validInput.gridCount);
     expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
     expect(result.gridOrders.map((order) => order.investment)).toEqual(result.gridInvestments);
+    expect(result.gridOrders.map((order) => order.quantity)).toEqual([0.5, 0.5, 0.5, 0.5]);
     expect(result.gridOrders.map((order) => order.filled)).toEqual([false, true, false, false]);
     expect(result.gridOrders.map((order) => order.grossProfitRate)).toEqual([
       25, 20, 16.666666666666664, 14.285714285714285,
     ]);
-    [53.33333333333334, 21.333333333333336, 8.888888888888888, 3.8095238095238098].forEach((profitAmount, index) => {
+    [12.5, 12.5, 12.5, 12.5].forEach((profitAmount, index) => {
       expect(result.gridOrders[index].grossProfitAmount).toBeCloseTo(profitAmount);
     });
     expect(result.gridOrders[1]).not.toHaveProperty('profitRate');
     expect(result.gridOrders[1]).not.toHaveProperty('profitAmount');
     expect(result.feeRate).toBe(0.1);
     expect(result.gridOrders[1].grossProfitRate).toBe(20);
-    expect(result.gridOrders[1].grossProfitAmount).toBeCloseTo(21.3333333333);
-    expect(result.gridOrders[1].netProfitAmount).toBeCloseTo(21.0986666667);
+    expect(result.gridOrders[1].grossProfitAmount).toBeCloseTo(12.5);
+    expect(result.gridOrders[1].netProfitAmount).toBeCloseTo(12.3625);
     expect(result.gridOrders[1].netProfitRate).toBeCloseTo(19.78);
   });
 
@@ -98,7 +116,7 @@ describe('calculateSpotGrid', () => {
     });
 
     expect(result.feeRate).toBe(0.2);
-    expect(result.gridOrders[1].netProfitAmount).toBeCloseTo(19.56);
+    expect(result.gridOrders[1].netProfitAmount).toBeCloseTo(12.225);
     expect(result.gridOrders[1].netProfitRate).toBeCloseTo(19.56);
     expect(shortResult.gridOrders[0]).toMatchObject({
       grossProfitAmount: 0,

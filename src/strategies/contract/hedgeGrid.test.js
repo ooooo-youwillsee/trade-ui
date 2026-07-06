@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { GRID_MODE_ARITHMETIC, POSITION_INCREMENT_RATIO } from '../common/grid';
+﻿import { describe, expect, it } from 'vitest';
+import { GRID_MODE_ARITHMETIC } from '../common/grid';
 import { calculateContractHedgeGrid, normalizeHedgeGridInput } from './hedgeGrid';
 
 describe('calculateContractHedgeGrid', () => {
@@ -19,8 +19,6 @@ describe('calculateContractHedgeGrid', () => {
       leverage: 5,
       investment: 400,
       additionalInvestment: 0,
-      positionIncrementMode: POSITION_INCREMENT_RATIO,
-      positionIncrementValue: 0,
     },
     shortLeg: {
       name: 'BTC short',
@@ -34,8 +32,6 @@ describe('calculateContractHedgeGrid', () => {
       leverage: 5,
       investment: 400,
       additionalInvestment: 0,
-      positionIncrementMode: POSITION_INCREMENT_RATIO,
-      positionIncrementValue: 0,
     },
   };
 
@@ -66,8 +62,8 @@ describe('calculateContractHedgeGrid', () => {
       shortScenarioChangePercent: 50,
     });
 
-    expect(result.shortRequiredMarginAmount).toBeCloseTo(305.3571428571);
-    expect(result.requiredMarginAmount).toBeCloseTo(305.3571428571);
+    expect(result.shortRequiredMarginAmount).toBeCloseTo(225);
+    expect(result.requiredMarginAmount).toBeCloseTo(225);
   });
 
   it('calculates required margin when the long leg falls toward liquidation', () => {
@@ -77,8 +73,8 @@ describe('calculateContractHedgeGrid', () => {
       shortScenarioChangePercent: 0,
     });
 
-    expect(result.longRequiredMarginAmount).toBeCloseTo(425);
-    expect(result.requiredMarginAmount).toBeCloseTo(425);
+    expect(result.longRequiredMarginAmount).toBeCloseTo(300);
+    expect(result.requiredMarginAmount).toBeCloseTo(300);
   });
 
   it('uses profitable scenario floating profit to cover required margin', () => {
@@ -89,7 +85,7 @@ describe('calculateContractHedgeGrid', () => {
     });
 
     expect(result.requiredMarginAmount).toBeCloseTo(0);
-    expect(result.availableTransferAmount).toBeCloseTo(250);
+    expect(result.availableTransferAmount).toBeCloseTo(187.5);
     expect(result.marginShortfall).toBe(0);
   });
 
@@ -100,9 +96,9 @@ describe('calculateContractHedgeGrid', () => {
       shortScenarioChangePercent: -10,
     });
 
-    expect(result.requiredMarginAmount).toBeCloseTo(425);
-    expect(result.availableTransferAmount).toBeCloseTo(100);
-    expect(result.marginShortfall).toBeCloseTo(325);
+    expect(result.requiredMarginAmount).toBeCloseTo(300);
+    expect(result.availableTransferAmount).toBeCloseTo(75);
+    expect(result.marginShortfall).toBeCloseTo(225);
   });
 
   it('does not require margin for a leg without scenario positions', () => {
@@ -131,7 +127,7 @@ describe('calculateContractHedgeGrid', () => {
       longScenarioChangePercent: 40,
     });
 
-    expect(result.longLegResult.currentNotional).toBe(500);
+    expect(result.longLegResult.currentNotional).toBe(312.5);
     expect(result.longLegResult.liquidationPrice).toBe(100);
     expect(result.longScenarioResult.currentNotional).toBe(0);
     expect(result.longScenarioResult.liquidationPrice).toBe(0);
@@ -148,7 +144,7 @@ describe('calculateContractHedgeGrid', () => {
       shortScenarioChangePercent: -40,
     });
 
-    expect(result.shortLegResult.currentNotional).toBe(500);
+    expect(result.shortLegResult.currentNotional).toBe(437.5);
     expect(result.shortLegResult.liquidationPrice).toBe(210);
     expect(result.shortScenarioResult.currentNotional).toBe(0);
     expect(result.shortScenarioResult.liquidationPrice).toBe(0);
@@ -166,12 +162,12 @@ describe('calculateContractHedgeGrid', () => {
     });
 
     expect(result.longScenarioResult.currentNotional).toBe(0);
-    expect(result.longScenarioResult.realizedProfitLoss).toBe(100);
-    expect(result.longScenarioResult.totalProfitLoss).toBe(100);
+    expect(result.longScenarioResult.realizedProfitLoss).toBe(62.5);
+    expect(result.longScenarioResult.totalProfitLoss).toBe(62.5);
     expect(result.scenarioTotalProfitLoss).toBeCloseTo(
       result.longScenarioResult.totalProfitLoss + result.shortScenarioResult.totalProfitLoss,
     );
-    expect(result.availableTransferAmount).toBe(100);
+    expect(result.availableTransferAmount).toBe(62.5);
   });
 
   it('keeps realized short scenario profit available after the grid closes', () => {
@@ -186,12 +182,12 @@ describe('calculateContractHedgeGrid', () => {
     });
 
     expect(result.shortScenarioResult.currentNotional).toBe(0);
-    expect(result.shortScenarioResult.realizedProfitLoss).toBeCloseTo(71.4285714286);
-    expect(result.shortScenarioResult.totalProfitLoss).toBeCloseTo(71.4285714286);
+    expect(result.shortScenarioResult.realizedProfitLoss).toBeCloseTo(62.5);
+    expect(result.shortScenarioResult.totalProfitLoss).toBeCloseTo(62.5);
     expect(result.scenarioTotalProfitLoss).toBeCloseTo(
       result.longScenarioResult.totalProfitLoss + result.shortScenarioResult.totalProfitLoss,
     );
-    expect(result.availableTransferAmount).toBeCloseTo(71.4285714286);
+    expect(result.availableTransferAmount).toBeCloseTo(62.5);
   });
 
   it('uses the underlying contract grid validation for invalid legs', () => {
@@ -225,8 +221,7 @@ describe('normalizeHedgeGridInput', () => {
         leverage: '5',
         investment: '400',
         additionalInvestment: '20',
-        positionIncrementMode: POSITION_INCREMENT_RATIO,
-        positionIncrementValue: '10',
+        minTradeQuantity: '0.001',
       },
       shortLeg: {
         name: ' BTC ',
@@ -240,8 +235,7 @@ describe('normalizeHedgeGridInput', () => {
         leverage: '5',
         investment: '400',
         additionalInvestment: '30',
-        positionIncrementMode: POSITION_INCREMENT_RATIO,
-        positionIncrementValue: '0',
+        minTradeQuantity: '0.0001',
       },
     });
 
@@ -250,6 +244,126 @@ describe('normalizeHedgeGridInput', () => {
     expect(input.shortScenarioChangePercent).toBe(-3);
     expect(input.longLeg.name).toBe('ETH');
     expect(input.longLeg.lowerPrice).toBe(100);
+    expect(input.longLeg.minTradeQuantity).toBe(0.001);
+    expect(input.shortLeg.minTradeQuantity).toBe(0.0001);
     expect(input.shortLeg.openOnCreate).toBe(false);
+  });
+
+  it('validates the long and short leg minimum trade quantities independently', () => {
+    const baseInput = {
+      name: 'hedge grid',
+      longScenarioChangePercent: -40,
+      shortScenarioChangePercent: 40,
+      longLeg: {
+        name: 'ETH long',
+        lowerPrice: 100,
+        upperPrice: 200,
+        entryPrice: 150,
+        currentPrice: 150,
+        openOnCreate: true,
+        gridMode: GRID_MODE_ARITHMETIC,
+        gridCount: 4,
+        leverage: 5,
+        investment: 400,
+        additionalInvestment: 0,
+      },
+      shortLeg: {
+        name: 'BTC short',
+        lowerPrice: 100,
+        upperPrice: 200,
+        entryPrice: 150,
+        currentPrice: 150,
+        openOnCreate: true,
+        gridMode: GRID_MODE_ARITHMETIC,
+        gridCount: 4,
+        leverage: 5,
+        investment: 400,
+        additionalInvestment: 0,
+      },
+    };
+
+    expect(() =>
+      calculateContractHedgeGrid({
+        ...baseInput,
+        longLeg: {
+          ...baseInput.longLeg,
+          upperPrice: 100000,
+          investment: 10,
+          leverage: 10,
+          gridCount: 200,
+          minTradeQuantity: 0.001,
+        },
+        shortLeg: {
+          ...baseInput.shortLeg,
+          minTradeQuantity: 0.0001,
+        },
+      }),
+    ).toThrow(/最小成交数量不足.*最大网格数.*最低保证金/);
+
+    const result = calculateContractHedgeGrid({
+      ...baseInput,
+      longLeg: {
+        ...baseInput.longLeg,
+        minTradeQuantity: 0.001,
+      },
+      shortLeg: {
+        ...baseInput.shortLeg,
+        minTradeQuantity: 0.0001,
+      },
+    });
+
+    expect(result.longLegResult.minTradeQuantity).toBe(0.001);
+    expect(result.shortLegResult.minTradeQuantity).toBe(0.0001);
+  });
+
+  it('rounds each hedge leg down to its own largest tradable quantity', () => {
+    const result = calculateContractHedgeGrid({
+      name: 'hedge rounding',
+      longScenarioChangePercent: 0,
+      shortScenarioChangePercent: 0,
+      longLeg: {
+        name: 'ETH long',
+        lowerPrice: 100,
+        upperPrice: 200,
+        entryPrice: 150,
+        currentPrice: 150,
+        openOnCreate: false,
+        gridMode: GRID_MODE_ARITHMETIC,
+        gridCount: 4,
+        leverage: 1,
+        investment: 21,
+        additionalInvestment: 0,
+        minTradeQuantity: 0.01,
+      },
+      shortLeg: {
+        name: 'BTC short',
+        lowerPrice: 100,
+        upperPrice: 200,
+        entryPrice: 150,
+        currentPrice: 150,
+        openOnCreate: false,
+        gridMode: GRID_MODE_ARITHMETIC,
+        gridCount: 4,
+        leverage: 2,
+        investment: 13,
+        additionalInvestment: 0,
+        minTradeQuantity: 0.01,
+      },
+    });
+
+    expect(result.longLegResult.minimumPerGridQuantity).toBeCloseTo(0.02625);
+    expect(result.longLegResult.tradableGridUnits).toBe(2);
+    expect(result.longLegResult.tradablePerGridQuantity).toBe(0.02);
+    expect(result.longLegResult.tradablePerGridMargin).toBe(4);
+    expect(result.longLegResult.unallocatedMargin).toBe(5);
+    expect(result.longLegResult.gridOrders.map((order) => order.quantity)).toEqual([0.02, 0.02, 0.02, 0.02]);
+    expect(result.longLegResult.gridMargins).toEqual([2, 2.5, 3, 3.5]);
+    expect(result.shortLegResult.minimumPerGridQuantity).toBeCloseTo(0.0325);
+    expect(result.shortLegResult.tradableGridUnits).toBe(3);
+    expect(result.shortLegResult.tradablePerGridQuantity).toBe(0.03);
+    expect(result.shortLegResult.tradablePerGridMargin).toBe(3);
+    expect(result.shortLegResult.unallocatedMargin).toBe(1);
+    expect(result.shortLegResult.gridOrders.map((order) => order.quantity)).toEqual([0.03, 0.03, 0.03, 0.03]);
+    expect(result.shortLegResult.gridMargins).toEqual([1.5, 1.875, 2.25, 2.625]);
   });
 });

@@ -7,8 +7,6 @@ import {
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
-  POSITION_INCREMENT_DIFFERENCE,
-  POSITION_INCREMENT_RATIO,
 } from '../strategies/common/grid';
 
 // 父页面传入响应式 form 和计算状态，表单只负责展示和触发事件。
@@ -38,18 +36,6 @@ const props = defineProps({
 // 事件命名保持业务动作语义，父页面根据当前路由决定具体跳转和提示。
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
 
-const incrementModeActions = [
-  { text: '比例', value: POSITION_INCREMENT_RATIO },
-  { text: '数量', value: POSITION_INCREMENT_DIFFERENCE },
-];
-
-function incrementModeLabel(mode) {
-  return mode === POSITION_INCREMENT_DIFFERENCE ? 'USDT' : '%';
-}
-
-function setIncrementMode(action) {
-  props.form.positionIncrementMode = action.value;
-}
 </script>
 
 <template>
@@ -128,17 +114,7 @@ function setIncrementMode(action) {
       <van-field v-model.number="form.feeRate" label="单边手续费率" type="number" input-align="right">
         <template #button>%</template>
       </van-field>
-      <van-field v-model.number="form.positionIncrementValue" label="单格递增" type="number" input-align="right">
-        <template #button>
-          <van-popover :actions="incrementModeActions" placement="bottom-end" @select="setIncrementMode">
-            <template #reference>
-              <van-button class="field-suffix-button" size="small" plain type="primary">
-                {{ incrementModeLabel(form.positionIncrementMode) }}
-              </van-button>
-            </template>
-          </van-popover>
-        </template>
-      </van-field>
+      <van-field v-model.number="form.minTradeQuantity" label="最小成交数量" type="number" input-align="right" />
     </van-cell-group>
 
     <div class="save-actions">
@@ -238,7 +214,4 @@ function setIncrementMode(action) {
   }
 }
 
-.field-suffix-button {
-  min-width: 56px;
-}
 </style>

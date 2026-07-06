@@ -1,6 +1,5 @@
 import {
   buildGridPrices,
-  buildGridPositionInvestments,
   calculateGridOrderProfit,
   CONTRACT_SIDE_LONG,
   CONTRACT_SIDE_SHORT,
@@ -8,10 +7,10 @@ import {
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
   gridProfitRate,
-  gridPositionInvestment,
   limitedGridProfitLoss,
-  POSITION_INCREMENT_RATIO,
+  normalizeMinTradeQuantity,
   totalYieldRate,
+  validateMinimumTradeQuantity,
 } from '../common/grid';
 
 // 现货手续费率使用百分数语义，0.1 表示单边 0.1%。
@@ -32,32 +31,45 @@ export function normalizeSpotGridInput(rawInput) {
     side: rawInput.side,
     investment: Number(rawInput.investment),
     feeRate: Number(rawInput.feeRate ?? DEFAULT_SPOT_GRID_FEE_RATE),
-    positionIncrementMode: rawInput.positionIncrementMode || POSITION_INCREMENT_RATIO,
-    positionIncrementValue: Number(rawInput.positionIncrementValue || 0),
+    minTradeQuantity: normalizeMinTradeQuantity(rawInput.minTradeQuantity, rawInput.name),
     openOnCreate: Boolean(rawInput.openOnCreate),
   };
 }
 
 // 计算现货网格的持仓、浮动盈亏、当前权益和网格收益率。
 export function calculateSpotGrid(input) {
+  input = {
+    ...input,
+    minTradeQuantity: normalizeMinTradeQuantity(input.minTradeQuantity, input.name),
+  };
   validateSpotGridInput(input);
   // 兼容尚未保存 feeRate 的旧策略，缺失时使用现货默认费率。
   const feeRate = Number(input.feeRate ?? DEFAULT_SPOT_GRID_FEE_RATE);
 
-  // 默认等额投入，开启仓位递增后按价格层分配总投入。
   const gridPrices = buildGridPrices(input.lowerPrice, input.upperPrice, input.gridCount, input.gridMode);
   const perGridInvestment = input.investment / input.gridCount;
-  const gridInvestments = buildGridPositionInvestments(
-    input.investment,
+  const minimumTradeCheck = validateMinimumTradeQuantity({
+    gridCount: input.gridCount,
+    investment: input.investment,
+    minTradeQuantity: input.minTradeQuantity,
+    upperPrice: input.upperPrice,
+    investmentLabel: '投入',
+  });
+  const gridInvestments = buildQuantityBasedInvestments(
+    gridPrices,
     input.gridCount,
-    input.side,
-    input.positionIncrementMode,
-    input.positionIncrementValue,
+    minimumTradeCheck.tradablePerGridQuantity,
   );
   const filledGridPositions = filledPositions(input, gridPrices);
   const filledGridPrices = filledGridPositions.map((position) => position.gridPrice);
-  const gridOrders = buildGridOrders(input.side, gridPrices, gridInvestments, filledGridPrices, feeRate);
-  const position = calculateCurrentPosition(input, filledGridPositions, gridPrices, gridInvestments);
+  const gridOrders = buildGridOrders(
+    input.side,
+    gridPrices,
+    minimumTradeCheck.tradablePerGridQuantity,
+    filledGridPrices,
+    feeRate,
+  );
+  const position = calculateCurrentPosition(input, filledGridPositions, minimumTradeCheck.tradablePerGridQuantity);
   const gridStep = gridPrices.length > 1 ? gridPrices[1] - gridPrices[0] : 0;
   const gridRatio = input.gridMode === GRID_MODE_GEOMETRIC && gridPrices.length > 1 ? gridPrices[1] / gridPrices[0] : 0;
 
@@ -68,9 +80,15 @@ export function calculateSpotGrid(input) {
     gridMode: input.gridMode,
     investment: input.investment,
     feeRate,
-    positionIncrementMode: input.positionIncrementMode,
-    positionIncrementValue: input.positionIncrementValue,
+    minTradeQuantity: minimumTradeCheck.minTradeQuantity,
     perGridInvestment,
+    minimumPerGridQuantity: minimumTradeCheck.minimumPerGridQuantity,
+    tradableGridUnits: minimumTradeCheck.tradableGridUnits,
+    tradablePerGridQuantity: minimumTradeCheck.tradablePerGridQuantity,
+    tradablePerGridInvestment: minimumTradeCheck.tradablePerGridInvestment,
+    unallocatedInvestment: minimumTradeCheck.unallocatedInvestment,
+    maxGridCountByMinTradeQuantity: minimumTradeCheck.maxGridCountByMinTradeQuantity,
+    minimumRequiredInvestment: minimumTradeCheck.minimumRequiredInvestment,
     gridInvestments,
     gridOrders,
     filledGridCount: filledGridPrices.length,
@@ -89,14 +107,20 @@ export function calculateSpotGrid(input) {
   };
 }
 
-// 现货以每格投入金额作为开仓名义金额，直接复用公共的开平仓毛净利润算法。
-function buildGridOrders(side, gridPrices, gridInvestments, filledGridPrices, feeRate) {
-  return gridInvestments.map((investment, index) => {
-    const price = gridPrices[index];
+// 固定每格成交数量，投入金额按该格开仓价反推，避免不同价格层产生不同成交数量。
+function buildQuantityBasedInvestments(gridPrices, gridCount, quantity) {
+  return gridPrices.slice(0, gridCount).map((price) => quantity * price);
+}
+
+// 挂单展示同样使用固定数量，利润以该格实际投入金额为名义成本计算。
+function buildGridOrders(side, gridPrices, quantity, filledGridPrices, feeRate) {
+  return gridPrices.slice(0, -1).map((price, index) => {
+    const investment = quantity * price;
     const targetPrice = side === CONTRACT_SIDE_LONG ? gridPrices[index + 1] : gridPrices[index - 1];
     const profits = calculateGridOrderProfit(price, targetPrice, investment, side, feeRate);
     return {
       price,
+      quantity,
       investment,
       ...profits,
       filled: filledGridPrices.includes(price),
@@ -123,7 +147,7 @@ function validateSpotGridInput(input) {
 }
 
 // 现货仓位以成本和数量累计，当前价值等于成本加受目标价限制后的浮盈浮亏。
-function calculateCurrentPosition(input, positions, gridPrices, gridInvestments) {
+function calculateCurrentPosition(input, positions, quantity) {
   const position = {
     quantity: 0,
     cost: 0,
@@ -133,8 +157,8 @@ function calculateCurrentPosition(input, positions, gridPrices, gridInvestments)
   };
 
   for (const filled of positions) {
-    const investment = gridPositionInvestment(filled, gridPrices, gridInvestments);
-    const quantity = investment / filled.openPrice;
+    // 创建即建仓的格子可能按 entryPrice 成交，因此持仓成本必须按实际 openPrice 反推。
+    const investment = quantity * filled.openPrice;
     position.quantity += quantity;
     position.cost += investment;
     position.floatingProfitLoss += limitedGridProfitLoss(

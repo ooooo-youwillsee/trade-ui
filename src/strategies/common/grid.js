@@ -1,4 +1,4 @@
-// 网格策略公共算法：提供方向/模式常量、网格价格生成、成交网格识别和收益率计算。
+﻿// 网格策略公共算法：提供方向/模式常量、网格价格生成、成交网格识别和收益率计算。
 
 // 合约和现货网格共用同一套方向值，便于表单、列表和计算模块统一判断。
 export const CONTRACT_SIDE_LONG = 'long';
@@ -9,11 +9,73 @@ export const CONTRACT_SIDE_SHORT = 'short';
 export const GRID_MODE_ARITHMETIC = 'arithmetic';
 export const GRID_MODE_GEOMETRIC = 'geometric';
 
-// 仓位递增支持按比例和按固定金额差两种模式，默认值为 0 时保持等额分配。
-export const POSITION_INCREMENT_RATIO = 'ratio';
-export const POSITION_INCREMENT_DIFFERENCE = 'difference';
+// 旧策略可能没有保存最小成交数量，按策略/币种名称补一个可交易的默认值。
+export function defaultMinTradeQuantity(name) {
+  const symbolName = String(name || '').toUpperCase();
+  if (symbolName.includes('BTC')) return 0.0001;
+  if (symbolName.includes('ETH')) return 0.001;
+  return 0.01;
+}
 
-// 根据上下限和网格数量生成包含边界的价格数组，等比模式会强制校准最后一个价格。
+export function normalizeMinTradeQuantity(rawValue, name) {
+  if (rawValue === undefined || rawValue === null || rawValue === '') return defaultMinTradeQuantity(name);
+  return Number(rawValue);
+}
+
+// 用最高价作为保守口径计算统一单格数量，确保所有更低价格的网格也能满足最小成交数量。
+export function buildTradableGridAllocation({
+  gridCount,
+  investment,
+  leverage = 1,
+  minTradeQuantity,
+  upperPrice,
+  investmentLabel,
+}) {
+  const normalizedMinTradeQuantity = Number(minTradeQuantity || 0);
+  if (!Number.isFinite(normalizedMinTradeQuantity) || normalizedMinTradeQuantity < 0) {
+    throw new Error('最小成交数量必须大于等于 0');
+  }
+  if (normalizedMinTradeQuantity === 0) {
+    return {
+      minTradeQuantity: normalizedMinTradeQuantity,
+      minimumPerGridQuantity: 0,
+      maxGridCountByMinTradeQuantity: 0,
+      minimumRequiredInvestment: 0,
+    };
+  }
+
+  const minimumPerGridQuantity = (investment * leverage) / gridCount / upperPrice;
+  // 不足一个最小成交单位时直接报错；能成交但不能整除时向下取最大可成交份数。
+  const tradableGridUnits = Math.floor(minimumPerGridQuantity / normalizedMinTradeQuantity + 1e-12);
+  const tradablePerGridQuantity = roundTradeQuantity(tradableGridUnits * normalizedMinTradeQuantity);
+  const tradablePerGridInvestment = (tradablePerGridQuantity * upperPrice) / leverage;
+  const unallocatedInvestment = investment - tradablePerGridInvestment * gridCount;
+  const minimumRequiredInvestment = (normalizedMinTradeQuantity * upperPrice * gridCount) / leverage;
+  const maxGridCount = Math.floor((investment * leverage) / (normalizedMinTradeQuantity * upperPrice));
+
+  if (tradableGridUnits > 0) {
+    return {
+      minTradeQuantity: normalizedMinTradeQuantity,
+      minimumPerGridQuantity,
+      tradableGridUnits,
+      tradablePerGridQuantity,
+      tradablePerGridInvestment,
+      unallocatedInvestment,
+      maxGridCountByMinTradeQuantity: maxGridCount,
+      minimumRequiredInvestment,
+    };
+  }
+
+  throw new Error(
+    `最小成交数量不足：当前每格可成交数量 ${formatValidationNumber(minimumPerGridQuantity)}，` +
+      `最小成交数量 ${formatValidationNumber(normalizedMinTradeQuantity)}，` +
+      `当前资金下最大网格数 ${maxGridCount}，` +
+      `当前网格数下最低${investmentLabel} ${formatValidationNumber(minimumRequiredInvestment)}`,
+  );
+}
+
+export const validateMinimumTradeQuantity = buildTradableGridAllocation;
+
 export function buildGridPrices(lowerPrice, upperPrice, gridCount, gridMode) {
   const prices = Array.from({ length: gridCount + 1 }, () => 0);
   if (gridMode === GRID_MODE_ARITHMETIC) {
@@ -30,31 +92,6 @@ export function buildGridPrices(lowerPrice, upperPrice, gridCount, gridMode) {
   return prices;
 }
 
-// 按网格方向生成每个价格层对应的计划金额，做多低价更大，做空高价更大。
-export function buildGridPositionInvestments(totalInvestment, gridCount, side, incrementMode, incrementValue) {
-  const normalizedMode = incrementMode || POSITION_INCREMENT_RATIO;
-  const value = Number(incrementValue || 0);
-  if (value < 0) throw new Error('仓位递增值不能小于 0');
-  if (normalizedMode !== POSITION_INCREMENT_RATIO && normalizedMode !== POSITION_INCREMENT_DIFFERENCE) {
-    throw new Error('仓位递增方式必须是比例或差额');
-  }
-  if (value === 0) return Array.from({ length: gridCount }, () => totalInvestment / gridCount);
-
-  const lowToHighAmounts =
-    normalizedMode === POSITION_INCREMENT_RATIO
-      ? buildRatioInvestments(totalInvestment, gridCount, side, value)
-      : buildDifferenceInvestments(totalInvestment, gridCount, side, value);
-  return lowToHighAmounts;
-}
-
-// 根据成交网格价格找到对应价格层的计划金额；边界价格会归入最靠近的一格。
-export function gridPositionInvestment(position, gridPrices, gridInvestments) {
-  const priceIndex = gridPrices.findIndex((price) => price === position.gridPrice);
-  const normalizedIndex = Math.min(Math.max(priceIndex, 0), gridInvestments.length - 1);
-  return gridInvestments[normalizedIndex] || 0;
-}
-
-// 找出当前价格与入场价之间已经触发的网格，并记录每格的开仓价和目标平仓价。
 export function filledPositions(input, gridPrices) {
   const positions = [];
   gridPrices.forEach((price, index) => {
@@ -179,25 +216,12 @@ function shortGridProfitRate(gridStep, gridRatio, gridPrices, gridMode) {
   return highSellPrice === 0 ? 0 : (gridStep / highSellPrice) * 100;
 }
 
-function buildRatioInvestments(totalInvestment, gridCount, side, incrementPercent) {
-  const ratio = 1 + incrementPercent / 100;
-  const weights = Array.from({ length: gridCount }, (_, index) => {
-    const adverseRank = side === CONTRACT_SIDE_LONG ? gridCount - 1 - index : index;
-    return Math.pow(ratio, adverseRank);
-  });
-  return normalizeWeights(totalInvestment, weights);
-}
-
-function buildDifferenceInvestments(totalInvestment, gridCount, side, incrementAmount) {
-  const baseAmount = (totalInvestment - (incrementAmount * gridCount * (gridCount - 1)) / 2) / gridCount;
-  if (baseAmount <= 0) throw new Error('单格递增金额过大，无法在总投资额内分配');
-  return Array.from({ length: gridCount }, (_, index) => {
-    const adverseRank = side === CONTRACT_SIDE_LONG ? gridCount - 1 - index : index;
-    return baseAmount + adverseRank * incrementAmount;
+function formatValidationNumber(value) {
+  return Number(value).toLocaleString('zh-CN', {
+    maximumFractionDigits: 10,
   });
 }
 
-function normalizeWeights(totalInvestment, weights) {
-  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
-  return weights.map((weight) => (totalInvestment * weight) / totalWeight);
+function roundTradeQuantity(value) {
+  return Number(value.toFixed(12));
 }

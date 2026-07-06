@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+﻿import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 import { useContractHedgeGridStrategies } from './useContractHedgeGridStrategies';
 
@@ -42,5 +42,55 @@ describe('useContractHedgeGridStrategies', () => {
     expect(deleted.ok).toBe(true);
     expect(store.strategies.value).toHaveLength(1);
     expect(store.strategies.value[0].id).toBe(duplicated.id);
+  });
+
+  it('infers minimum trade quantities for old saved hedge legs that do not have the field', async () => {
+    localStorage.setItem(
+      'contract-hedge-grid-strategies',
+      JSON.stringify({
+        strategies: [
+          {
+            id: 'old-hedge',
+            updatedAt: 1,
+            name: 'old hedge',
+            longScenarioChangePercent: -10,
+            shortScenarioChangePercent: 10,
+            longLeg: {
+              name: 'BTCUSDT long',
+              lowerPrice: 60000,
+              upperPrice: 120000,
+              entryPrice: 90000,
+              currentPrice: 90000,
+              openOnCreate: false,
+              gridMode: 'geometric',
+              gridCount: 100,
+              leverage: 10,
+              investment: 500,
+              additionalInvestment: 0,
+            },
+            shortLeg: {
+              name: 'ETHUSDT short',
+              lowerPrice: 900,
+              upperPrice: 4500,
+              entryPrice: 2300,
+              currentPrice: 2300,
+              openOnCreate: false,
+              gridMode: 'geometric',
+              gridCount: 100,
+              leverage: 10,
+              investment: 500,
+              additionalInvestment: 0,
+            },
+          },
+        ],
+      }),
+    );
+
+    vi.resetModules();
+    const { useContractHedgeGridStrategies } = await import('./useContractHedgeGridStrategies');
+    const store = useContractHedgeGridStrategies();
+
+    expect(store.activeInput.value.longLeg.minTradeQuantity).toBe(0.0001);
+    expect(store.activeInput.value.shortLeg.minTradeQuantity).toBe(0.001);
   });
 });

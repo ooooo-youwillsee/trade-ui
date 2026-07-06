@@ -4,7 +4,6 @@ import {
   CONTRACT_SIDE_NEUTRAL,
   CONTRACT_SIDE_SHORT,
   GRID_MODE_ARITHMETIC,
-  POSITION_INCREMENT_RATIO,
 } from '../common/grid';
 import { calculateContractGrid, normalizeInput } from './grid';
 
@@ -36,11 +35,11 @@ describe('calculateContractGrid', () => {
     expect(result.perGridNotional).toBe(500);
     expect(result.filledGridCount).toBe(1);
     expect(result.filledGridPrices).toEqual([125]);
-    expect(result.positionQuantity).toBe(4);
+    expect(result.positionQuantity).toBe(2.5);
     expect(result.averageEntryPrice).toBe(125);
-    expect(result.currentEquity).toBe(200);
-    expect(result.liquidationPrice).toBe(75);
-    expect(result.estimatedGridLiquidationPrice).toBeCloseTo(55.5555555556);
+    expect(result.currentEquity).toBe(162.5);
+    expect(result.liquidationPrice).toBe(60);
+    expect(result.estimatedGridLiquidationPrice).toBeCloseTo(12.5);
     expect(result.gridProfitRate).toBe(25);
     expect(result.totalYieldRate).toBe(100);
   });
@@ -56,54 +55,78 @@ describe('calculateContractGrid', () => {
     expect(result.filledGridCount).toBe(1);
     expect(result.filledGridPrices).toEqual([175]);
     expect(result.averageEntryPrice).toBe(175);
-    expect(result.liquidationPrice).toBeCloseTo(245);
+    expect(result.positionQuantity).toBe(2.5);
+    expect(result.liquidationPrice).toBeCloseTo(250);
     expect(result.gridProfitRate).toBe(12.5);
     expect(result.totalYieldRate).toBe(100);
   });
 
-  it('keeps old inputs compatible when increment fields are omitted', () => {
+  it('keeps old inputs compatible when optional fields are omitted', () => {
     const result = calculateContractGrid(validInput);
 
-    expect(result.positionIncrementMode).toBeUndefined();
-    expect(result.positionIncrementValue).toBeUndefined();
-    expect(result.gridMargins).toEqual([100, 100, 100, 100]);
-    expect(result.filledMargin).toBe(200);
-    expect(result.currentNotional).toBe(500);
+    expect(result.minTradeQuantity).toBe(0.01);
+    expect(result.gridMargins).toEqual([50, 62.5, 75, 87.5]);
+    expect(result.filledMargin).toBe(162.5);
+    expect(result.currentNotional).toBe(312.5);
     expect(normalizeInput(validInput).feeRate).toBe(0.02);
   });
 
-  it('uses the matched grid margin and notional when position increment is enabled', () => {
+  it('infers BTC minimum trade quantity when the field is omitted', () => {
+    expect(normalizeInput({ ...validInput, name: 'BTCUSDT contract grid' }).minTradeQuantity).toBe(0.0001);
+  });
+
+  it('rounds fixed per-grid notional down to the largest tradable BTC quantity', () => {
     const result = calculateContractGrid({
       ...validInput,
-      positionIncrementMode: POSITION_INCREMENT_RATIO,
-      positionIncrementValue: 100,
+      name: 'BTCUSDT',
+      investment: 560,
+      leverage: 10,
+      gridCount: 200,
+      upperPrice: 100000,
     });
 
-    expect(result.gridMargins.reduce((sum, amount) => sum + amount, 0)).toBeCloseTo(400);
-    expect(result.gridMargins[0]).toBeGreaterThan(result.gridMargins[3]);
-    expect(result.filledMargin).toBeCloseTo(206.6666666667);
-    expect(result.currentNotional).toBeCloseTo(533.3333333333);
-    expect(result.positionQuantity).toBeCloseTo(4.2666666667);
-    expect(result.liquidationPrice).toBeCloseTo(76.5625);
+    expect(result.perGridMargin).toBe(2.8);
+    expect(result.perGridNotional).toBe(28);
+    expect(result.minimumPerGridQuantity).toBeCloseTo(0.00028);
+    expect(result.minTradeQuantity).toBe(0.0001);
+    expect(result.tradableGridUnits).toBe(2);
+    expect(result.tradablePerGridQuantity).toBe(0.0002);
+    expect(result.tradablePerGridMargin).toBe(2);
+    expect(result.unallocatedMargin).toBe(160);
+    expect(result.gridOrders.every((order) => order.quantity === 0.0002)).toBe(true);
+    expect(result.gridOrders[0].notional).toBeCloseTo(0.0002 * result.gridOrders[0].price);
+    expect(result.gridOrders[0].margin).toBeCloseTo(result.gridOrders[0].notional / 10);
+  });
+
+  it('rejects a BTC grid when fixed per-grid notional is below the minimum trade quantity', () => {
+    expect(() =>
+      calculateContractGrid({
+        ...validInput,
+        name: 'BTCUSDT',
+        upperPrice: 100000,
+        investment: 1,
+        leverage: 10,
+        gridCount: 200,
+        minTradeQuantity: 0.0001,
+      }),
+    ).toThrow(/最小成交数量.*最大网格数.*最低保证金/);
   });
 
   it('builds order rows with price, margin, and filled status', () => {
-    const result = calculateContractGrid({
-      ...validInput,
-      positionIncrementMode: POSITION_INCREMENT_RATIO,
-      positionIncrementValue: 100,
-    });
+    const result = calculateContractGrid(validInput);
 
     expect(result.gridOrders).toHaveLength(validInput.gridCount);
     expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
     expect(result.gridOrders.map((order) => order.margin)).toEqual(result.gridMargins);
+    expect(result.gridOrders.map((order) => order.quantity)).toEqual([2.5, 2.5, 2.5, 2.5]);
+    expect(result.gridOrders.map((order) => order.notional)).toEqual([250, 312.5, 375, 437.5]);
     expect(result.gridOrders.map((order) => order.filled)).toEqual([false, true, false, false]);
     expect(result.gridOrders[1]).not.toHaveProperty('profitRate');
     expect(result.gridOrders[1]).not.toHaveProperty('profitAmount');
     expect(result.feeRate).toBe(0.02);
     expect(result.gridOrders[1].grossProfitRate).toBe(20);
-    expect(result.gridOrders[1].grossProfitAmount).toBeCloseTo(106.6666666667);
-    expect(result.gridOrders[1].netProfitAmount).toBeCloseTo(106.432);
+    expect(result.gridOrders[1].grossProfitAmount).toBeCloseTo(62.5);
+    expect(result.gridOrders[1].netProfitAmount).toBeCloseTo(62.3625);
     expect(result.gridOrders[1].netProfitRate).toBeCloseTo(19.956);
   });
 
@@ -119,8 +142,9 @@ describe('calculateContractGrid', () => {
     expect(result.gridOrders.map((order) => order.price)).toEqual([100, 125, 150, 175]);
     expect(result.gridOrders.map((order) => order.filled)).toEqual([false, false, false, true]);
     expect(result.gridOrders[3].grossProfitRate).toBeCloseTo(14.2857142857);
-    expect(result.gridOrders[3].grossProfitAmount).toBeCloseTo(71.4285714286);
-    expect(result.gridOrders[3].netProfitAmount).toBeCloseTo(71.2428571429);
+    expect(result.gridOrders[3].quantity).toBe(2.5);
+    expect(result.gridOrders[3].grossProfitAmount).toBeCloseTo(62.5);
+    expect(result.gridOrders[3].netProfitAmount).toBeCloseTo(62.3375);
     expect(result.gridOrders[3].netProfitRate).toBeCloseTo(14.2485714286);
   });
 
@@ -134,7 +158,7 @@ describe('calculateContractGrid', () => {
     });
 
     expect(result.feeRate).toBe(0.1);
-    expect(result.gridOrders[1].netProfitAmount).toBeCloseTo(98.9);
+    expect(result.gridOrders[1].netProfitAmount).toBeCloseTo(61.8125);
     expect(result.gridOrders[1].netProfitRate).toBeCloseTo(19.78);
     expect(shortResult.gridOrders[0]).toMatchObject({
       grossProfitAmount: 0,
@@ -161,12 +185,12 @@ describe('calculateContractGrid', () => {
     expect(result.filledGridPrices).toEqual([125]);
     expect(result.longLeg.filledGridPrices).toEqual([125]);
     expect(result.shortLeg.filledGridPrices).toEqual([]);
-    expect(result.longLeg.currentNotional).toBe(500);
+    expect(result.longLeg.currentNotional).toBe(312.5);
     expect(result.shortLeg.currentNotional).toBe(0);
-    expect(result.currentNotional).toBe(500);
+    expect(result.currentNotional).toBe(312.5);
     expect(result.totalProfitLoss).toBe(0);
     expect(result).not.toHaveProperty('floatingProfitLoss');
-    expect(result.currentEquity).toBe(200);
+    expect(result.currentEquity).toBe(162.5);
     expect(result.gridOrders[1].side).toBe(CONTRACT_SIDE_LONG);
   });
 
@@ -181,9 +205,9 @@ describe('calculateContractGrid', () => {
     expect(result.filledGridPrices).toEqual([175]);
     expect(result.longLeg.filledGridPrices).toEqual([]);
     expect(result.shortLeg.filledGridPrices).toEqual([175]);
-    expect(result.shortLeg.currentNotional).toBe(500);
+    expect(result.shortLeg.currentNotional).toBe(437.5);
     expect(result.averageEntryPrice).toBe(175);
-    expect(result.liquidationPrice).toBeCloseTo(245);
+    expect(result.liquidationPrice).toBeCloseTo(250);
     expect(result.gridOrders[3].side).toBe(CONTRACT_SIDE_SHORT);
   });
 
@@ -228,7 +252,7 @@ describe('calculateContractGrid', () => {
       25, 20, 16.666666666666664, 14.285714285714285,
     ]);
     expect(result.gridOrders.map((order) => order.grossProfitAmount)).toEqual([
-      125, 100, 83.33333333333331, 71.42857142857142,
+      62.5, 62.5, 62.49999999999999, 62.5,
     ]);
   });
 
@@ -254,15 +278,15 @@ describe('calculateContractGrid', () => {
     expect(result.filledGridPrices).toEqual([175, 200]);
     expect(result.closedGridPrices).toEqual([175]);
     expect(result.openGridPrices).toEqual([200]);
-    expect(result.currentNotional).toBe(500);
-    expect(result.positionQuantity).toBeCloseTo(3.3333333333);
+    expect(result.currentNotional).toBe(375);
+    expect(result.positionQuantity).toBeCloseTo(2.5);
     expect(result.averageEntryPrice).toBe(150);
-    expect(result.realizedProfitLoss).toBeCloseTo(83.3333333333);
-    expect(result.unrealizedProfitLoss).toBeCloseTo(83.3333333333);
-    expect(result.totalProfitLoss).toBeCloseTo(166.6666666667);
+    expect(result.realizedProfitLoss).toBeCloseTo(62.5);
+    expect(result.unrealizedProfitLoss).toBeCloseTo(62.5);
+    expect(result.totalProfitLoss).toBeCloseTo(125);
     expect(result).not.toHaveProperty('floatingProfitLoss');
-    expect(result.liquidationPrice).toBe(90);
-    expect(result.currentEquity).toBeCloseTo(366.6666666667);
+    expect(result.liquidationPrice).toBe(80);
+    expect(result.currentEquity).toBeCloseTo(300);
   });
 
   it('removes closed short open-on-create grids from open position and records realized profit', () => {
@@ -276,14 +300,14 @@ describe('calculateContractGrid', () => {
     expect(result.filledGridPrices).toEqual([100, 125]);
     expect(result.closedGridPrices).toEqual([125]);
     expect(result.openGridPrices).toEqual([100]);
-    expect(result.currentNotional).toBe(500);
-    expect(result.positionQuantity).toBeCloseTo(3.3333333333);
+    expect(result.currentNotional).toBe(375);
+    expect(result.positionQuantity).toBeCloseTo(2.5);
     expect(result.averageEntryPrice).toBe(150);
-    expect(result.realizedProfitLoss).toBeCloseTo(83.3333333333);
-    expect(result.unrealizedProfitLoss).toBeCloseTo(83.3333333333);
-    expect(result.totalProfitLoss).toBeCloseTo(166.6666666667);
+    expect(result.realizedProfitLoss).toBeCloseTo(62.5);
+    expect(result.unrealizedProfitLoss).toBeCloseTo(62.5);
+    expect(result.totalProfitLoss).toBeCloseTo(125);
     expect(result).not.toHaveProperty('floatingProfitLoss');
-    expect(result.liquidationPrice).toBe(210);
-    expect(result.currentEquity).toBeCloseTo(366.6666666667);
+    expect(result.liquidationPrice).toBeCloseTo(220);
+    expect(result.currentEquity).toBeCloseTo(300);
   });
 });

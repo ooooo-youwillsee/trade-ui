@@ -15,7 +15,6 @@ import {
   CONTRACT_SIDE_LONG,
   CONTRACT_SIDE_NEUTRAL,
   GRID_MODE_GEOMETRIC,
-  POSITION_INCREMENT_DIFFERENCE,
 } from '../strategies/common/grid';
 import { getHealth } from '../composables/useContractGridStrategies';
 import { formatNumber, formatPercent, formatPriceWithReferenceChange, formatProfitWithRate } from '../utils/formatters';
@@ -46,12 +45,6 @@ const sideIcon = computed(() => {
   if (isNeutral.value) return ArrowLeftRight;
   return props.activeInput?.side === CONTRACT_SIDE_LONG ? TrendingUp : TrendingDown;
 });
-const incrementLabel = computed(() => {
-  if (props.activeInput?.positionIncrementMode === POSITION_INCREMENT_DIFFERENCE) {
-    return `差额递增 ${formatNumber(props.activeInput?.positionIncrementValue ?? 0, 2)}`;
-  }
-  return `比例递增 ${formatPercent(props.activeInput?.positionIncrementValue ?? 0, 2)}`;
-});
 
 const summaryMetrics = computed(() => [
   {
@@ -66,6 +59,14 @@ const summaryMetrics = computed(() => [
   {
     label: '计划名义仓位',
     value: formatNumber(props.result?.notional ?? 0, 2),
+  },
+  {
+    label: '实际单格数量',
+    value: formatNumber(props.result?.tradablePerGridQuantity ?? 0, 8),
+  },
+  {
+    label: '未分配保证金',
+    value: formatNumber(props.result?.unallocatedMargin ?? 0, 4),
   },
   {
     label: '总保证金',
@@ -120,7 +121,7 @@ const inputRows = computed(() => [
   ['初始保证金', formatNumber(props.activeInput?.investment ?? 0, 2)],
   ['追加保证金', formatNumber(props.activeInput?.additionalInvestment ?? 0, 2)],
   ['单边手续费率', formatPercent(props.activeInput?.feeRate ?? 0, 4)],
-  ['仓位递增', incrementLabel.value],
+  ['最小成交数量', formatNumber(props.activeInput?.minTradeQuantity ?? 0, 8)],
 ]);
 
 // 将合约网格方向值转换成详情页可读文案，中性模式单独展示。

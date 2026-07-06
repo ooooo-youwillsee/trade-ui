@@ -73,6 +73,9 @@ function legMetrics(leg) {
   // 当前值来自当前网格结果，场景值来自场景推演结果，便于对比仓位变化。
   return [
     ['合约名称', leg.input?.name || '-'],
+    ['最小成交数量', formatNumber(leg.input?.minTradeQuantity ?? 0, 8)],
+    ['实际单格数量', formatNumber(leg.result?.tradablePerGridQuantity ?? 0, 8)],
+    ['未分配保证金', formatNumber(leg.result?.unallocatedMargin ?? 0, 4)],
     ['当前持仓', formatNumber(leg.result?.currentNotional ?? 0, 4)],
     ['场景持仓', formatNumber(leg.scenario?.currentNotional ?? 0, 4)],
     ['当前持仓均价', formatNumber(leg.result?.averageEntryPrice ?? 0, 4)],

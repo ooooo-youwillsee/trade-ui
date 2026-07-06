@@ -190,14 +190,25 @@ function loadStrategies() {
       return savedStrategies.map((strategy) => ({
         ...cloneInput(defaultContractHedgeGridInput),
         ...strategy,
-        longLeg: { ...defaultContractHedgeGridInput.longLeg, ...strategy.longLeg },
-        shortLeg: { ...defaultContractHedgeGridInput.shortLeg, ...strategy.shortLeg },
+        longLeg: mergeSavedLeg(defaultContractHedgeGridInput.longLeg, strategy.longLeg),
+        shortLeg: mergeSavedLeg(defaultContractHedgeGridInput.shortLeg, strategy.shortLeg),
       }));
     }
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
   return [];
+}
+
+function mergeSavedLeg(defaultLeg, savedLeg = {}) {
+  return {
+    ...defaultLeg,
+    ...savedLeg,
+    // 历史策略缺少最小成交数量时保留 undefined，让 normalize 按腿名称推断 ETH/BTC 默认值。
+    ...(!Object.prototype.hasOwnProperty.call(savedLeg, 'minTradeQuantity')
+      ? { minTradeQuantity: undefined }
+      : {}),
+  };
 }
 
 function persistStrategies(items) {
