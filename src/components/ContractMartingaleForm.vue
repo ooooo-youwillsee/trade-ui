@@ -1,6 +1,9 @@
 <script setup>
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG, MARTINGALE_SIDE_SHORT } from '../strategies/common/martingale';
+import { limitDecimalPlaces } from '../utils/inputFormatters';
+
+const formatFirstOrderAmount = (value) => limitDecimalPlaces(value, 4);
 
 defineProps({
   calculation: { type: Object, required: true },
@@ -70,7 +73,14 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
         <template #button>%</template>
       </van-field>
       <van-field v-model.number="form.leverage" label="杠杆倍数" type="number" input-align="right" />
-      <van-field v-model.number="form.firstOrderAmount" label="首单保证金" type="number" input-align="right" />
+      <van-field
+        v-model.number="form.firstOrderAmount"
+        label="首单保证金"
+        type="number"
+        :formatter="formatFirstOrderAmount"
+        format-trigger="onChange"
+        input-align="right"
+      />
       <van-field v-model.number="form.multiplier" label="加仓倍数" type="number" input-align="right" />
       <van-field v-model.number="form.maxLayers" label="最大层数" type="number" input-align="right" />
       <van-field v-model.number="form.additionalMargin" label="追加保证金" type="number" input-align="right" />

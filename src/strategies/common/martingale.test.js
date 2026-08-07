@@ -110,23 +110,31 @@ describe('calculateMartingale', () => {
     );
   });
 
-  it('calculates per-layer take-profit gross and net profit from only that layer order', () => {
-    const result = calculateMartingale(spotInput);
-    const secondLayer = result.layers[1];
-    const expectedGross = (secondLayer.takeProfitPrice - secondLayer.triggerPrice) * secondLayer.quantity;
-    const expectedFee =
-      ((secondLayer.notional + secondLayer.quantity * secondLayer.takeProfitPrice) * spotInput.feeRate) / 100;
+  it.each([MARTINGALE_SIDE_LONG, MARTINGALE_SIDE_SHORT])(
+    'calculates cumulative per-layer take-profit gross, fees, net profit, and rates for %s',
+    (side) => {
+      const result = calculateMartingale({ ...spotInput, side });
+      const secondLayer = result.layers[1];
+      const expectedGross =
+        side === MARTINGALE_SIDE_LONG
+          ? (secondLayer.takeProfitPrice - secondLayer.averageEntryPrice) * secondLayer.cumulativeQuantity
+          : (secondLayer.averageEntryPrice - secondLayer.takeProfitPrice) * secondLayer.cumulativeQuantity;
+      const expectedFee =
+        ((secondLayer.cumulativeNotional + secondLayer.cumulativeQuantity * secondLayer.takeProfitPrice) *
+          spotInput.feeRate) /
+        100;
 
-    expect(secondLayer.takeProfitGrossProfitAmount).toBeCloseTo(expectedGross);
-    expect(secondLayer.takeProfitGrossProfitRate).toBeCloseTo((expectedGross / secondLayer.notional) * 100);
-    expect(secondLayer.takeProfitNetProfitAmount).toBeCloseTo(expectedGross - expectedFee);
-    expect(secondLayer.takeProfitNetProfitRate).toBeCloseTo(
-      ((expectedGross - expectedFee) / secondLayer.notional) * 100,
-    );
-    expect(secondLayer).not.toHaveProperty('takeProfitProfit');
-    expect(secondLayer).not.toHaveProperty('currentFloatingProfitLoss');
-    expect(secondLayer).not.toHaveProperty('currentFloatingProfitRate');
-  });
+      expect(secondLayer.takeProfitGrossProfitAmount).toBeCloseTo(expectedGross);
+      expect(secondLayer.takeProfitGrossProfitRate).toBeCloseTo((expectedGross / secondLayer.cumulativeNotional) * 100);
+      expect(secondLayer.takeProfitNetProfitAmount).toBeCloseTo(expectedGross - expectedFee);
+      expect(secondLayer.takeProfitNetProfitRate).toBeCloseTo(
+        ((expectedGross - expectedFee) / secondLayer.cumulativeNotional) * 100,
+      );
+      expect(secondLayer).not.toHaveProperty('takeProfitProfit');
+      expect(secondLayer).not.toHaveProperty('currentFloatingProfitLoss');
+      expect(secondLayer).not.toHaveProperty('currentFloatingProfitRate');
+    },
+  );
 
   it('uses the short trigger price and cumulative average for layer floating profit', () => {
     const result = calculateMartingale({
@@ -137,7 +145,8 @@ describe('calculateMartingale', () => {
     const secondLayer = result.layers[1];
     const expectedTriggerProfit =
       (secondLayer.averageEntryPrice - secondLayer.triggerPrice) * secondLayer.cumulativeQuantity;
-    const expectedGross = (secondLayer.triggerPrice - secondLayer.takeProfitPrice) * secondLayer.quantity;
+    const expectedGross =
+      (secondLayer.averageEntryPrice - secondLayer.takeProfitPrice) * secondLayer.cumulativeQuantity;
 
     expect(secondLayer.triggerFloatingProfitLoss).toBeCloseTo(expectedTriggerProfit);
     expect(secondLayer.triggerFloatingProfitRate).toBeCloseTo(
@@ -175,8 +184,29 @@ describe('calculateMartingale', () => {
     const withoutFees = calculateMartingale({ ...spotInput, feeRate: 0 });
 
     expect(withoutFees.currentTakeProfitNetProfitAmount).toBeCloseTo(withoutFees.currentTakeProfitGrossProfitAmount);
+    for (const layer of withoutFees.layers) {
+      expect(layer.takeProfitNetProfitAmount).toBeCloseTo(layer.takeProfitGrossProfitAmount);
+      expect(layer.takeProfitNetProfitRate).toBeCloseTo(layer.takeProfitGrossProfitRate);
+    }
     for (const feeRate of [-0.01, 100, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(() => calculateMartingale({ ...spotInput, feeRate })).toThrow('手续费率');
+    }
+  });
+
+  it('keeps cumulative layer take-profit metrics independent of current price', () => {
+    const atEntry = calculateMartingale(spotInput);
+    const afterMove = calculateMartingale({ ...spotInput, currentPrice: 80 });
+    const metricNames = [
+      'takeProfitGrossProfitAmount',
+      'takeProfitGrossProfitRate',
+      'takeProfitNetProfitAmount',
+      'takeProfitNetProfitRate',
+    ];
+
+    for (let index = 0; index < atEntry.layers.length; index += 1) {
+      for (const metricName of metricNames) {
+        expect(afterMove.layers[index][metricName]).toBeCloseTo(atEntry.layers[index][metricName]);
+      }
     }
   });
 
@@ -279,6 +309,10 @@ describe('calculateMartingale', () => {
     {
       name: 'order amount overflow',
       overrides: { maxLayers: 3, multiplier: Number.MAX_VALUE },
+    },
+    {
+      name: 'order quantity underflow',
+      overrides: { entryPrice: Number.MAX_VALUE, firstOrderAmount: Number.MIN_VALUE, maxLayers: 1 },
     },
     {
       name: 'current profit overflow',

@@ -44,7 +44,14 @@ export function calculateMartingale(rawInput) {
     const notional = input.mode === MARTINGALE_MODE_FUTURES ? orderAmount * input.leverage : orderAmount;
     const quantity = notional / triggerPrice;
 
-    assertCalculableMartingaleValues(triggerPrice > 0, triggerPrice, orderAmount, marginAmount, notional, quantity);
+    assertCalculableMartingaleValues(
+      triggerPrice > 0 && quantity > 0,
+      triggerPrice,
+      orderAmount,
+      marginAmount,
+      notional,
+      quantity,
+    );
 
     cumulativeInvestment += input.mode === MARTINGALE_MODE_SPOT ? orderAmount : 0;
     cumulativeMargin += marginAmount;
@@ -63,10 +70,10 @@ export function calculateMartingale(rawInput) {
     const triggerFloatingProfitRate = (triggerFloatingProfitLoss / cumulativeNotional) * 100;
     const takeProfit = calculateTakeProfitMetrics(
       input.side,
-      triggerPrice,
+      averageEntryPrice,
       takeProfitPrice,
-      quantity,
-      notional,
+      cumulativeQuantity,
+      cumulativeNotional,
       input.feeRate,
     );
     const capitalUsed = input.mode === MARTINGALE_MODE_FUTURES ? cumulativeMargin : cumulativeInvestment;

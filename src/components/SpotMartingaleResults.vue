@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { BarChart3, Layers3, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
-import { formatNumber, formatPercent, formatProfitWithRate } from '../utils/formatters';
+import { formatNumber, formatPercent, formatPriceWithReferenceChange, formatProfitWithRate } from '../utils/formatters';
 
 const props = defineProps({
   activeInput: { type: Object, default: null },
@@ -13,6 +13,20 @@ const activeLayerSections = ref([]);
 
 const sideLabel = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? TrendingUp : TrendingDown));
+const currentExecutedLayer = computed(() => {
+  const currentLayerIndex = (props.result?.currentExecutedLayers ?? 0) - 1;
+  return currentLayerIndex >= 0 ? props.result?.layers?.[currentLayerIndex] : null;
+});
+const currentLayerTakeProfitMetrics = computed(() => {
+  const layer = currentExecutedLayer.value;
+  if (!layer) return { grossValue: '-', grossDanger: false, netValue: '-', netDanger: false };
+  return {
+    grossValue: formatProfitWithRate(layer.takeProfitGrossProfitAmount ?? 0, layer.takeProfitGrossProfitRate ?? 0),
+    grossDanger: (layer.takeProfitGrossProfitAmount ?? 0) < 0,
+    netValue: formatProfitWithRate(layer.takeProfitNetProfitAmount ?? 0, layer.takeProfitNetProfitRate ?? 0),
+    netDanger: (layer.takeProfitNetProfitAmount ?? 0) < 0,
+  };
+});
 const health = computed(() =>
   props.result ? { label: '运行中', type: 'success' } : { label: '参数异常', type: 'danger' },
 );
@@ -37,6 +51,12 @@ const summaryMetrics = computed(() => [
     formatNumber(props.result?.currentFloatingProfitLoss ?? 0, 4),
     (props.result?.currentFloatingProfitLoss ?? 0) < 0,
   ],
+  [
+    '当前层级止盈毛利润',
+    currentLayerTakeProfitMetrics.value.grossValue,
+    currentLayerTakeProfitMetrics.value.grossDanger,
+  ],
+  ['当前层级止盈净利润', currentLayerTakeProfitMetrics.value.netValue, currentLayerTakeProfitMetrics.value.netDanger],
   ['当前止盈价', formatNumber(props.result?.currentTakeProfitPrice ?? 0, 4), false],
 ]);
 </script>
@@ -148,42 +168,52 @@ const summaryMetrics = computed(() => [
                 </van-tag>
               </div>
               <div class="layer-grid">
-                <span
-                  >触发价 <b>{{ formatNumber(layer.triggerPrice, 4) }}</b></span
-                >
-                <span
-                  >本层金额 <b>{{ formatNumber(layer.orderAmount, 2) }}</b></span
-                >
-                <span
-                  >累计投入 <b>{{ formatNumber(layer.capitalUsed, 2) }}</b></span
-                >
-                <span
-                  >成交数量 <b>{{ formatNumber(layer.quantity, 8) }}</b></span
-                >
-                <span
-                  >持仓均价 <b>{{ formatNumber(layer.averageEntryPrice, 4) }}</b></span
-                >
-                <span
-                  >止盈价 <b>{{ formatNumber(layer.takeProfitPrice, 4) }}</b></span
-                >
-                <span>
-                  触发时浮动盈亏
+                <div class="layer-metric">
+                  <span>触发价</span>
+                  <b>{{ formatPriceWithReferenceChange(layer.triggerPrice, result.entryPrice, 4, 2) }}</b>
+                </div>
+                <div class="layer-metric">
+                  <span>触发时浮动盈亏</span>
                   <b :class="{ negative: layer.triggerFloatingProfitLoss < 0 }">{{
                     formatProfitWithRate(layer.triggerFloatingProfitLoss ?? 0, layer.triggerFloatingProfitRate ?? 0)
                   }}</b>
-                </span>
-                <span>
-                  止盈毛利润
+                </div>
+                <div class="layer-metric">
+                  <span>本层金额</span>
+                  <b>{{ formatNumber(layer.orderAmount, 4) }}</b>
+                </div>
+                <div class="layer-metric">
+                  <span>本层成交数量</span>
+                  <b>{{ formatNumber(layer.quantity, 8) }}</b>
+                </div>
+                <div class="layer-metric">
+                  <span>累计投入</span>
+                  <b>{{ formatNumber(layer.capitalUsed, 4) }}</b>
+                </div>
+                <div class="layer-metric">
+                  <span>累计成交数量</span>
+                  <b>{{ formatNumber(layer.cumulativeQuantity, 8) }}</b>
+                </div>
+                <div class="layer-metric">
+                  <span>持仓均价</span>
+                  <b>{{ formatNumber(layer.averageEntryPrice, 4) }}</b>
+                </div>
+                <div class="layer-metric">
+                  <span>止盈价</span>
+                  <b>{{ formatNumber(layer.takeProfitPrice, 4) }}</b>
+                </div>
+                <div class="layer-metric layer-metric--profit">
+                  <span>止盈毛利润</span>
                   <b>{{
                     formatProfitWithRate(layer.takeProfitGrossProfitAmount ?? 0, layer.takeProfitGrossProfitRate ?? 0)
                   }}</b>
-                </span>
-                <span>
-                  止盈净利润
+                </div>
+                <div class="layer-metric layer-metric--profit">
+                  <span>止盈净利润</span>
                   <b :class="{ negative: layer.takeProfitNetProfitAmount < 0 }">{{
                     formatProfitWithRate(layer.takeProfitNetProfitAmount ?? 0, layer.takeProfitNetProfitRate ?? 0)
                   }}</b>
-                </span>
+                </div>
               </div>
             </article>
           </div>
@@ -331,6 +361,43 @@ const summaryMetrics = computed(() => [
   gap: 10px;
   margin-bottom: 10px;
 }
+.layer-metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--trade-border);
+  border-radius: 6px;
+  background: var(--trade-surface);
+}
+.layer-metric > span {
+  flex: 0 0 auto;
+  line-height: 1.2;
+}
+.layer-metric > b {
+  display: block;
+  flex: 0 1 auto;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  margin-left: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: left;
+  font-size: var(--trade-font-sm);
+  line-height: 1.25;
+  scrollbar-width: none;
+  white-space: nowrap;
+}
+.layer-metric > b::-webkit-scrollbar {
+  display: none;
+}
+.layer-metric--profit {
+  background: var(--trade-up-soft);
+}
 .negative {
   color: var(--trade-down) !important;
 }
@@ -349,5 +416,10 @@ const summaryMetrics = computed(() => [
 }
 .collapse-title {
   width: 100%;
+}
+@media (max-width: 560px) {
+  .layer-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
