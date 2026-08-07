@@ -1,20 +1,9 @@
 <script setup>
-// 合约马丁结果组件：展示层级表、强平风险、资金缺口和当前仓位。
 import { computed } from 'vue';
-import {
-  AlertTriangle,
-  BarChart3,
-  Layers3,
-  ShieldCheck,
-  SlidersHorizontal,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
-} from '@lucide/vue';
+import { BarChart3, Layers3, ShieldCheck, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
-import { formatNumber, formatPercent } from '../utils/formatters';
+import { formatNumber, formatPercent, formatProfitWithRate } from '../utils/formatters';
 
-// 结果组件只读 props，所有计算已在策略层完成。
 const props = defineProps({
   activeInput: { type: Object, default: null },
   result: { type: Object, default: null },
@@ -22,38 +11,33 @@ const props = defineProps({
 
 const sideLabel = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? TrendingUp : TrendingDown));
-// 健康状态综合资金缺口和强平距离，用于顶部风险标签。
 const health = computed(() => {
   if (!props.result) return { label: '参数异常', type: 'danger' };
-  if (props.result.hasCapitalShortfall) return { label: '资金不足', type: 'danger' };
+  if (props.result.liquidationPrice > 0 && props.result.liquidationDistance <= 0)
+    return { label: '已达强平区', type: 'danger' };
   if (props.result.liquidationDistance > 0 && props.result.liquidationDistance < 10)
     return { label: '强平较近', type: 'warning' };
-  return { label: '资金可覆盖', type: 'success' };
+  return { label: '风险可控', type: 'success' };
 });
 const inputRows = computed(() => [
   ['策略名称', props.activeInput?.name || '-'],
   ['方向', sideLabel.value],
+  ['入场价', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
   ['当前价', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
   ['首单保证金', formatNumber(props.activeInput?.firstOrderAmount ?? 0, 2)],
   ['加仓倍数', formatNumber(props.activeInput?.multiplier ?? 0, 4)],
   ['最大层数', String(props.activeInput?.maxLayers ?? '-')],
   ['触发幅度', formatPercent(props.activeInput?.triggerPercent ?? 0, 4)],
   ['止盈比例', formatPercent(props.activeInput?.takeProfitPercent ?? 0, 4)],
-  ['保证金上限', formatNumber(props.activeInput?.totalCapital ?? 0, 2)],
   ['杠杆倍数', `${formatNumber(props.activeInput?.leverage ?? 0, 2)}x`],
   ['追加保证金', formatNumber(props.activeInput?.additionalMargin ?? 0, 2)],
-  ['维持保证金率', formatPercent((props.activeInput?.maintenanceMarginRate ?? 0) * 100, 4)],
 ]);
 const summaryMetrics = computed(() => [
-  ['最大资金需求', formatNumber(props.result?.maxCapitalRequired ?? 0, 2), props.result?.hasCapitalShortfall],
+  ['入场价', formatNumber(props.result?.entryPrice ?? 0, 4), false],
+  ['当前价', formatNumber(props.result?.currentPrice ?? 0, 4), false],
+  ['当前执行层', `${props.result?.currentExecutedLayers ?? 0}/${props.result?.layers.length ?? 0}`, false],
   [
-    '可执行层数',
-    `${props.result?.executableLayers ?? 0}/${props.result?.layers.length ?? 0}`,
-    props.result?.hasCapitalShortfall,
-  ],
-  ['当前触发层数', String(props.result?.currentTriggeredLayers ?? 0), false],
-  [
-    '当前浮盈亏',
+    '浮动盈亏',
     formatNumber(props.result?.currentFloatingProfitLoss ?? 0, 4),
     (props.result?.currentFloatingProfitLoss ?? 0) < 0,
   ],
@@ -63,7 +47,6 @@ const summaryMetrics = computed(() => [
 </script>
 
 <template>
-  <!-- 合约马丁结果：先展示风险概览，再展示逐层补仓计划。 -->
   <div class="results-panel">
     <section class="detail-hero">
       <div class="detail-hero__top">
@@ -79,11 +62,6 @@ const summaryMetrics = computed(() => [
         <span>强平缓冲</span>
         <strong>{{ formatPercent(result?.liquidationDistance ?? 0, 2) }}</strong>
       </div>
-    </section>
-
-    <section v-if="result?.hasCapitalShortfall" class="risk-note">
-      <AlertTriangle :size="18" />
-      <span>资金缺口 {{ formatNumber(result.capitalShortfall, 2) }}，后续层级会标记为不可执行。</span>
     </section>
 
     <section class="detail-card">
@@ -125,8 +103,8 @@ const summaryMetrics = computed(() => [
           <span>当前保证金</span><strong>{{ formatNumber(result?.currentMargin ?? 0, 4) }}</strong>
         </div>
         <div class="position-row">
-          <span>当前权益</span
-          ><strong :class="{ negative: (result?.currentEquity ?? 0) < 0 }">{{
+          <span>当前权益</span>
+          <strong :class="{ negative: (result?.currentEquity ?? 0) < 0 }">{{
             formatNumber(result?.currentEquity ?? 0, 4)
           }}</strong>
         </div>
@@ -143,13 +121,13 @@ const summaryMetrics = computed(() => [
         <article
           v-for="layer in result?.layers ?? []"
           :key="layer.layer"
-          :class="['layer-card', { disabled: !layer.executable }]"
+          :class="['layer-card', { planned: layer.layer > (result?.currentExecutedLayers ?? 0) }]"
         >
           <div class="layer-card__head">
             <strong>第 {{ layer.layer }} 层</strong>
-            <van-tag :type="layer.executable ? 'primary' : 'danger'" plain>{{
-              layer.executable ? '可执行' : '资金不足'
-            }}</van-tag>
+            <van-tag :type="layer.layer <= (result?.currentExecutedLayers ?? 0) ? 'primary' : 'default'" plain>
+              {{ layer.layer <= (result?.currentExecutedLayers ?? 0) ? '已执行' : '计划中' }}
+            </van-tag>
           </div>
           <div class="layer-grid">
             <span
@@ -170,6 +148,12 @@ const summaryMetrics = computed(() => [
             <span
               >止盈价 <b>{{ formatNumber(layer.takeProfitPrice, 4) }}</b></span
             >
+            <span>
+              当前盈亏
+              <b :class="{ negative: layer.currentFloatingProfitLoss < 0 }">{{
+                formatProfitWithRate(layer.currentFloatingProfitLoss ?? 0, layer.currentFloatingProfitRate ?? 0)
+              }}</b>
+            </span>
           </div>
         </article>
       </div>
@@ -178,7 +162,6 @@ const summaryMetrics = computed(() => [
 </template>
 
 <style scoped lang="scss">
-/* 马丁结果布局：指标区和层级列表分离，便于快速判断资金压力。 */
 .results-panel {
   display: grid;
   gap: 12px;
@@ -187,8 +170,7 @@ const summaryMetrics = computed(() => [
 }
 .detail-hero,
 .detail-card,
-.metric-section,
-.risk-note {
+.metric-section {
   border: 1px solid var(--trade-border);
   border-radius: 8px;
   background: var(--trade-surface);
@@ -211,8 +193,7 @@ const summaryMetrics = computed(() => [
 .detail-hero__top,
 .health-line,
 .section-title,
-.side-badge,
-.risk-note {
+.side-badge {
   display: flex;
   align-items: center;
 }
@@ -325,8 +306,8 @@ const summaryMetrics = computed(() => [
 .layer-list {
   gap: 8px;
 }
-.layer-card.disabled {
-  opacity: 0.68;
+.layer-card.planned {
+  opacity: 0.72;
 }
 .layer-card__head {
   display: flex;
@@ -334,14 +315,6 @@ const summaryMetrics = computed(() => [
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
-}
-.risk-note {
-  gap: 8px;
-  padding: 12px;
-  color: var(--trade-warn);
-  background: var(--trade-warn-soft);
-  font-size: var(--trade-font-sm);
-  font-weight: var(--trade-weight-medium);
 }
 .negative {
   color: var(--trade-down) !important;

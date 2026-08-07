@@ -1,11 +1,9 @@
 <script setup>
-// 现货马丁结果组件：展示补仓层级、资金占用和止盈目标。
 import { computed } from 'vue';
-import { AlertTriangle, BarChart3, Layers3, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
+import { BarChart3, Layers3, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
-import { formatNumber, formatPercent } from '../utils/formatters';
+import { formatNumber, formatPercent, formatProfitWithRate } from '../utils/formatters';
 
-// props 保持只读，组件只负责格式化和视觉呈现。
 const props = defineProps({
   activeInput: { type: Object, default: null },
   result: { type: Object, default: null },
@@ -13,33 +11,26 @@ const props = defineProps({
 
 const sideLabel = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? TrendingUp : TrendingDown));
-// 现货马丁风险主要来自资金不足，因此健康度围绕资金覆盖判断。
-const health = computed(() => {
-  if (!props.result) return { label: '参数异常', type: 'danger' };
-  if (props.result.hasCapitalShortfall) return { label: '资金不足', type: 'danger' };
-  return { label: '资金可覆盖', type: 'success' };
-});
+const health = computed(() =>
+  props.result ? { label: '运行中', type: 'success' } : { label: '参数异常', type: 'danger' },
+);
 const inputRows = computed(() => [
   ['策略名称', props.activeInput?.name || '-'],
   ['方向', sideLabel.value],
+  ['入场价', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
   ['当前价', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
   ['首单金额', formatNumber(props.activeInput?.firstOrderAmount ?? 0, 2)],
   ['加仓倍数', formatNumber(props.activeInput?.multiplier ?? 0, 4)],
   ['最大层数', String(props.activeInput?.maxLayers ?? '-')],
   ['触发幅度', formatPercent(props.activeInput?.triggerPercent ?? 0, 4)],
   ['止盈比例', formatPercent(props.activeInput?.takeProfitPercent ?? 0, 4)],
-  ['总资金上限', formatNumber(props.activeInput?.totalCapital ?? 0, 2)],
 ]);
 const summaryMetrics = computed(() => [
-  ['最大资金需求', formatNumber(props.result?.maxCapitalRequired ?? 0, 2), props.result?.hasCapitalShortfall],
+  ['入场价', formatNumber(props.result?.entryPrice ?? 0, 4), false],
+  ['当前价', formatNumber(props.result?.currentPrice ?? 0, 4), false],
+  ['当前执行层', `${props.result?.currentExecutedLayers ?? 0}/${props.result?.layers.length ?? 0}`, false],
   [
-    '可执行层数',
-    `${props.result?.executableLayers ?? 0}/${props.result?.layers.length ?? 0}`,
-    props.result?.hasCapitalShortfall,
-  ],
-  ['当前触发层数', String(props.result?.currentTriggeredLayers ?? 0), false],
-  [
-    '当前浮盈亏',
+    '浮动盈亏',
     formatNumber(props.result?.currentFloatingProfitLoss ?? 0, 4),
     (props.result?.currentFloatingProfitLoss ?? 0) < 0,
   ],
@@ -49,7 +40,6 @@ const summaryMetrics = computed(() => [
 </script>
 
 <template>
-  <!-- 现货马丁结果：不展示强平价，重点展示可执行层数和止盈收益。 -->
   <div class="results-panel">
     <section class="detail-hero">
       <div class="detail-hero__top">
@@ -60,11 +50,6 @@ const summaryMetrics = computed(() => [
         <van-tag :type="health.type" round>{{ health.label }}</van-tag>
       </div>
       <h2>{{ result?.name || '现货马丁' }}</h2>
-    </section>
-
-    <section v-if="result?.hasCapitalShortfall" class="risk-note">
-      <AlertTriangle :size="18" />
-      <span>资金缺口 {{ formatNumber(result.capitalShortfall, 2) }}，后续层级会标记为不可执行。</span>
     </section>
 
     <section class="detail-card">
@@ -121,13 +106,13 @@ const summaryMetrics = computed(() => [
         <article
           v-for="layer in result?.layers ?? []"
           :key="layer.layer"
-          :class="['layer-card', { disabled: !layer.executable }]"
+          :class="['layer-card', { planned: layer.layer > (result?.currentExecutedLayers ?? 0) }]"
         >
           <div class="layer-card__head">
             <strong>第 {{ layer.layer }} 层</strong>
-            <van-tag :type="layer.executable ? 'primary' : 'danger'" plain>{{
-              layer.executable ? '可执行' : '资金不足'
-            }}</van-tag>
+            <van-tag :type="layer.layer <= (result?.currentExecutedLayers ?? 0) ? 'primary' : 'default'" plain>
+              {{ layer.layer <= (result?.currentExecutedLayers ?? 0) ? '已执行' : '计划中' }}
+            </van-tag>
           </div>
           <div class="layer-grid">
             <span
@@ -137,7 +122,7 @@ const summaryMetrics = computed(() => [
               >本层金额 <b>{{ formatNumber(layer.orderAmount, 2) }}</b></span
             >
             <span
-              >累计资金 <b>{{ formatNumber(layer.capitalUsed, 2) }}</b></span
+              >累计投入 <b>{{ formatNumber(layer.capitalUsed, 2) }}</b></span
             >
             <span
               >成交数量 <b>{{ formatNumber(layer.quantity, 8) }}</b></span
@@ -148,6 +133,12 @@ const summaryMetrics = computed(() => [
             <span
               >止盈价 <b>{{ formatNumber(layer.takeProfitPrice, 4) }}</b></span
             >
+            <span>
+              当前盈亏
+              <b :class="{ negative: layer.currentFloatingProfitLoss < 0 }">{{
+                formatProfitWithRate(layer.currentFloatingProfitLoss ?? 0, layer.currentFloatingProfitRate ?? 0)
+              }}</b>
+            </span>
           </div>
         </article>
       </div>
@@ -156,7 +147,6 @@ const summaryMetrics = computed(() => [
 </template>
 
 <style scoped lang="scss">
-/* 现货马丁结果布局：层级明细在移动端保持纵向阅读节奏。 */
 .results-panel {
   display: grid;
   gap: 12px;
@@ -165,8 +155,7 @@ const summaryMetrics = computed(() => [
 }
 .detail-hero,
 .detail-card,
-.metric-section,
-.risk-note {
+.metric-section {
   border: 1px solid var(--trade-border);
   border-radius: 8px;
   background: var(--trade-surface);
@@ -188,8 +177,7 @@ const summaryMetrics = computed(() => [
 }
 .detail-hero__top,
 .section-title,
-.side-badge,
-.risk-note {
+.side-badge {
   display: flex;
   align-items: center;
 }
@@ -286,8 +274,8 @@ const summaryMetrics = computed(() => [
 .layer-list {
   gap: 8px;
 }
-.layer-card.disabled {
-  opacity: 0.68;
+.layer-card.planned {
+  opacity: 0.72;
 }
 .layer-card__head {
   display: flex;
@@ -295,14 +283,6 @@ const summaryMetrics = computed(() => [
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
-}
-.risk-note {
-  gap: 8px;
-  padding: 12px;
-  color: var(--trade-warn);
-  background: var(--trade-warn-soft);
-  font-size: var(--trade-font-sm);
-  font-weight: var(--trade-weight-medium);
 }
 .negative {
   color: var(--trade-down) !important;

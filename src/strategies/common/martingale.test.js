@@ -1,71 +1,210 @@
 import { describe, expect, it } from 'vitest';
-import { calculateMartingale, MARTINGALE_MODE_FUTURES, MARTINGALE_MODE_SPOT, MARTINGALE_SIDE_LONG } from './martingale';
+import {
+  calculateMartingale,
+  MARTINGALE_MODE_FUTURES,
+  MARTINGALE_MODE_SPOT,
+  MARTINGALE_SIDE_LONG,
+  MARTINGALE_SIDE_SHORT,
+  normalizeMartingaleInput,
+} from './martingale';
+import { defaultContractMartingaleInput } from '../contract/martingaleDefaults';
+import { defaultSpotMartingaleInput } from '../spot/martingaleDefaults';
 
-// 马丁算法测试覆盖现货层级、合约风险和资金不足三条核心路径。
 describe('calculateMartingale', () => {
-  // 现货基础输入用于复用构造不同场景，减少测试间参数噪音。
   const spotInput = {
     name: 'spot martingale',
     mode: MARTINGALE_MODE_SPOT,
     side: MARTINGALE_SIDE_LONG,
+    entryPrice: 100,
     currentPrice: 100,
     firstOrderAmount: 100,
     multiplier: 2,
     maxLayers: 3,
     triggerPercent: 10,
     takeProfitPercent: 5,
-    totalCapital: 1000,
     leverage: 1,
     additionalMargin: 0,
-    maintenanceMarginRate: 0.005,
-    includeInitialOrder: true,
-    restrictByCapital: true,
   };
 
-  it('builds spot martingale layers with trigger, amount, average entry, and take profit values', () => {
-    const result = calculateMartingale(spotInput);
-
-    expect(result.layers).toHaveLength(3);
-    expect(result.layers.map((layer) => layer.triggerPrice)).toEqual([100, 90, 81]);
-    expect(result.layers.map((layer) => layer.orderAmount)).toEqual([100, 200, 400]);
-    expect(result.layers[0].averageEntryPrice).toBe(100);
-    expect(result.layers[0].takeProfitPrice).toBe(105);
-    expect(result.layers[1].averageEntryPrice).toBeCloseTo(93.1034482759);
-    expect(result.layers[1].takeProfitPrice).toBeCloseTo(97.7586206897);
-    expect(result.maxCapitalRequired).toBe(700);
-    expect(result.currentTriggeredLayers).toBe(1);
-    expect(result.currentTakeProfitPrice).toBe(105);
+  it('provides entry and current prices in both market defaults', () => {
+    expect(defaultContractMartingaleInput).toMatchObject({
+      entryPrice: 2300,
+      currentPrice: 2300,
+      firstOrderAmount: 0.5,
+      multiplier: 1,
+      maxLayers: 200,
+      triggerPercent: 0.2,
+      takeProfitPercent: 0.2,
+      leverage: 100,
+    });
+    expect(defaultSpotMartingaleInput).toMatchObject({
+      entryPrice: 2300,
+      currentPrice: 2300,
+      firstOrderAmount: 0.5,
+      multiplier: 1,
+      maxLayers: 200,
+      triggerPercent: 0.2,
+      takeProfitPercent: 0.2,
+      leverage: 1,
+    });
   });
 
-  it('calculates futures margin, notional, floating profit and liquidation values', () => {
+  it('builds every layer from entry price independently of current price', () => {
+    const atEntry = calculateMartingale(spotInput);
+    const afterMove = calculateMartingale({ ...spotInput, currentPrice: 89 });
+
+    expect(atEntry.layers.map((layer) => layer.triggerPrice)).toEqual([100, 90, 81]);
+    expect(afterMove.layers.map((layer) => layer.triggerPrice)).toEqual([100, 90, 81]);
+    expect(afterMove.entryPrice).toBe(100);
+    expect(afterMove.currentPrice).toBe(89);
+  });
+
+  it('uses the short direction to generate increasing entry-based layers', () => {
     const result = calculateMartingale({
+      ...spotInput,
+      side: MARTINGALE_SIDE_SHORT,
+      currentPrice: 111,
+    });
+
+    expect(result.layers[0].triggerPrice).toBe(100);
+    expect(result.layers[1].triggerPrice).toBeCloseTo(110);
+    expect(result.layers[2].triggerPrice).toBeCloseTo(121);
+    expect(result.currentExecutedLayers).toBe(2);
+    expect(result.currentFloatingProfitLoss).toBeLessThan(0);
+  });
+
+  it.each([
+    ['profitable long', MARTINGALE_SIDE_LONG, 110, 1],
+    ['long at second trigger', MARTINGALE_SIDE_LONG, 90, 2],
+    ['long between triggers', MARTINGALE_SIDE_LONG, 89, 2],
+    ['long beyond all layers', MARTINGALE_SIDE_LONG, 80, 3],
+    ['profitable short', MARTINGALE_SIDE_SHORT, 90, 1],
+    ['short at second trigger', MARTINGALE_SIDE_SHORT, 110, 2],
+    ['short beyond all layers', MARTINGALE_SIDE_SHORT, 122, 3],
+  ])('counts executed layers for %s', (_name, side, currentPrice, expectedLayers) => {
+    const result = calculateMartingale({ ...spotInput, side, currentPrice });
+    expect(result.currentExecutedLayers).toBe(expectedLayers);
+  });
+
+  it('summarizes only executed layers while retaining current-price scenarios for every layer', () => {
+    const result = calculateMartingale({ ...spotInput, currentPrice: 89 });
+    const secondLayer = result.layers[1];
+
+    expect(result.currentExecutedLayers).toBe(2);
+    expect(result.currentQuantity).toBeCloseTo(secondLayer.cumulativeQuantity);
+    expect(result.currentAverageEntryPrice).toBeCloseTo(secondLayer.averageEntryPrice);
+    expect(result.currentNotional).toBe(secondLayer.cumulativeNotional);
+    expect(result.currentFloatingProfitLoss).toBeCloseTo(
+      (89 - secondLayer.averageEntryPrice) * secondLayer.cumulativeQuantity,
+    );
+    expect(result.layers[2].currentFloatingProfitLoss).toBeCloseTo(
+      (89 - result.layers[2].averageEntryPrice) * result.layers[2].cumulativeQuantity,
+    );
+  });
+
+  it('calculates futures equity and liquidation from executed and additional margin', () => {
+    const withAdditionalMargin = calculateMartingale({
       ...spotInput,
       name: 'futures martingale',
       mode: MARTINGALE_MODE_FUTURES,
       leverage: 5,
       additionalMargin: 50,
     });
-
-    expect(result.layers[0].marginAmount).toBe(100);
-    expect(result.layers[0].notional).toBe(500);
-    expect(result.currentMargin).toBe(100);
-    expect(result.currentNotional).toBe(500);
-    expect(result.currentQuantity).toBe(5);
-    expect(result.currentFloatingProfitLoss).toBe(0);
-    expect(result.currentEquity).toBe(150);
-    expect(result.liquidationPrice).toBe(70.5);
-    expect(result.liquidationDistance).toBe(29.5);
-  });
-
-  it('marks layers beyond the available capital as not executable', () => {
-    const result = calculateMartingale({
+    const withoutAdditionalMargin = calculateMartingale({
       ...spotInput,
-      totalCapital: 250,
+      name: 'futures martingale',
+      mode: MARTINGALE_MODE_FUTURES,
+      leverage: 5,
+      additionalMargin: 0,
+    });
+    const shortResult = calculateMartingale({
+      ...spotInput,
+      name: 'short futures martingale',
+      mode: MARTINGALE_MODE_FUTURES,
+      side: MARTINGALE_SIDE_SHORT,
+      leverage: 5,
+      additionalMargin: 50,
     });
 
-    expect(result.layers.map((layer) => layer.executable)).toEqual([true, false, false]);
-    expect(result.executableLayers).toBe(1);
-    expect(result.hasCapitalShortfall).toBe(true);
-    expect(result.capitalShortfall).toBe(450);
+    expect(withAdditionalMargin.currentMargin).toBe(100);
+    expect(withAdditionalMargin.currentNotional).toBe(500);
+    expect(withAdditionalMargin.currentEquity).toBe(150);
+    expect(withAdditionalMargin.liquidationPrice).toBe(70);
+    expect(withAdditionalMargin.liquidationDistance).toBe(30);
+    expect(withoutAdditionalMargin.liquidationPrice).toBe(80);
+    expect(shortResult.liquidationPrice).toBe(130);
+  });
+
+  it('floors long liquidation at zero when the loss budget exceeds notional', () => {
+    const result = calculateMartingale({
+      ...spotInput,
+      name: 'fully covered futures martingale',
+      mode: MARTINGALE_MODE_FUTURES,
+      leverage: 1,
+      additionalMargin: 100,
+    });
+
+    expect(result.liquidationPrice).toBe(0);
+    expect(result.liquidationDistance).toBe(0);
+  });
+
+  it('omits removed capital-control inputs and result fields', () => {
+    const normalized = normalizeMartingaleInput({
+      ...spotInput,
+      totalCapital: 1000,
+      maintenanceMarginRate: 0.005,
+      includeInitialOrder: false,
+      restrictByCapital: true,
+    });
+    const result = calculateMartingale(normalized);
+
+    expect(normalized).not.toHaveProperty('totalCapital');
+    expect(normalized).not.toHaveProperty('maintenanceMarginRate');
+    expect(normalized).not.toHaveProperty('includeInitialOrder');
+    expect(normalized).not.toHaveProperty('restrictByCapital');
+    expect(result).not.toHaveProperty('currentTriggeredLayers');
+    expect(result).not.toHaveProperty('executableLayers');
+    expect(result).not.toHaveProperty('capitalShortfall');
+    expect(result).not.toHaveProperty('hasCapitalShortfall');
+    expect(result).not.toHaveProperty('availableCapital');
+    expect(result).not.toHaveProperty('maxCapitalRequired');
+    expect(result.layers.every((layer) => !('executable' in layer) && !('availableCapital' in layer))).toBe(true);
+  });
+
+  it('calculates the 200-layer defaults and accepts larger positive integers', () => {
+    expect(calculateMartingale(defaultContractMartingaleInput).layers).toHaveLength(200);
+    expect(calculateMartingale(defaultSpotMartingaleInput).layers).toHaveLength(200);
+    expect(calculateMartingale({ ...defaultSpotMartingaleInput, maxLayers: 201 }).layers).toHaveLength(201);
+  });
+
+  it.each([0, -1, 1.5])('rejects a non-positive-integer max layer value: %s', (maxLayers) => {
+    expect(() => calculateMartingale({ ...defaultSpotMartingaleInput, maxLayers })).toThrow('最大层数必须是正整数');
+  });
+
+  it.each([
+    {
+      name: 'long trigger underflow',
+      overrides: { entryPrice: 100, maxLayers: 200, triggerPercent: 99 },
+    },
+    {
+      name: 'short trigger overflow',
+      overrides: { entryPrice: Number.MAX_VALUE, maxLayers: 2, side: MARTINGALE_SIDE_SHORT, triggerPercent: 99 },
+    },
+    {
+      name: 'order amount overflow',
+      overrides: { maxLayers: 3, multiplier: Number.MAX_VALUE },
+    },
+    {
+      name: 'current profit overflow',
+      overrides: { entryPrice: 100, currentPrice: Number.MAX_VALUE, firstOrderAmount: Number.MAX_VALUE, maxLayers: 1 },
+    },
+    {
+      name: 'additional margin is not finite',
+      overrides: { additionalMargin: Number.POSITIVE_INFINITY },
+    },
+  ])('rejects a parameter combination outside the numeric range: $name', ({ overrides }) => {
+    expect(() => calculateMartingale({ ...defaultSpotMartingaleInput, ...overrides })).toThrow(
+      '马丁参数组合超出可计算范围',
+    );
   });
 });

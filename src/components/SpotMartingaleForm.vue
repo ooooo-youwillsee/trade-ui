@@ -1,9 +1,7 @@
 <script setup>
-// 现货马丁编辑表单：配置补仓层级、触发幅度和资金上限。
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG, MARTINGALE_SIDE_SHORT } from '../strategies/common/martingale';
 
-// form 为响应式草稿，父页面负责保存和删除等副作用。
 defineProps({
   calculation: { type: Object, required: true },
   form: { type: Object, required: true },
@@ -12,12 +10,10 @@ defineProps({
   selectedId: { type: String, required: true },
 });
 
-// 操作事件全部上抛，保持表单组件无路由依赖。
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
 </script>
 
 <template>
-  <!-- 现货马丁表单主体：不展示合约专属的杠杆风险结果。 -->
   <div class="save-page">
     <section class="save-hero">
       <p class="eyebrow">Spot Martingale</p>
@@ -59,22 +55,26 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
           </van-radio-group>
         </template>
       </van-field>
-      <van-field v-model.number="form.currentPrice" label="当前价" type="number" input-align="right" />
-      <van-field v-model.number="form.firstOrderAmount" label="首单金额" type="number" input-align="right" />
-      <van-field v-model.number="form.multiplier" label="加仓倍数" type="number" input-align="right" />
-      <van-field v-model.number="form.maxLayers" label="最大层数" type="number" input-align="right" />
-      <van-field v-model.number="form.triggerPercent" label="触发幅度 %" type="number" input-align="right" />
-      <van-field v-model.number="form.takeProfitPercent" label="止盈比例 %" type="number" input-align="right" />
-      <van-field v-model.number="form.totalCapital" label="总资金上限" type="number" input-align="right" />
     </van-cell-group>
 
-    <van-cell-group inset title="执行规则">
-      <van-cell center title="首单已成交">
-        <template #right-icon><van-switch v-model="form.includeInitialOrder" size="22px" /></template>
-      </van-cell>
-      <van-cell center title="按总资金限制层级">
-        <template #right-icon><van-switch v-model="form.restrictByCapital" size="22px" /></template>
-      </van-cell>
+    <van-cell-group class="price-group" inset title="行情价格">
+      <div class="field-grid price-grid">
+        <van-field v-model.number="form.entryPrice" label="入场价" type="number" input-align="right" />
+        <van-field v-model.number="form.currentPrice" label="当前价" type="number" input-align="right" />
+      </div>
+    </van-cell-group>
+
+    <van-cell-group inset title="加仓参数">
+      <div class="field-grid">
+        <van-field v-model.number="form.firstOrderAmount" label="首单金额" type="number" input-align="right" />
+        <van-field v-model.number="form.multiplier" label="加仓倍数" type="number" input-align="right" />
+        <van-field v-model.number="form.maxLayers" label="最大层数" type="number" input-align="right" />
+        <van-field v-model.number="form.triggerPercent" label="触发幅度 %" type="number" input-align="right" />
+      </div>
+    </van-cell-group>
+
+    <van-cell-group inset title="止盈参数">
+      <van-field v-model.number="form.takeProfitPercent" label="止盈比例 %" type="number" input-align="right" />
     </van-cell-group>
 
     <div class="save-actions">
@@ -105,7 +105,6 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
 </template>
 
 <style scoped lang="scss">
-/* 保存页布局：操作按钮在移动端保持两列，主按钮独占一行。 */
 .save-page {
   display: grid;
   gap: 12px;
@@ -131,7 +130,6 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
   color: var(--trade-subtle);
   font-size: var(--trade-font-xs);
   font-weight: var(--trade-weight-strong);
-  letter-spacing: 0;
   text-transform: uppercase;
 }
 .save-pill {
@@ -154,6 +152,14 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
   gap: 8px;
   padding: 12px 16px 14px;
 }
+.price-group :deep(.van-cell-group__title) {
+  color: var(--trade-up);
+  font-weight: var(--trade-weight-strong);
+}
+.price-grid :deep(.van-field__label) {
+  color: var(--trade-text);
+  font-weight: var(--trade-weight-strong);
+}
 .save-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -162,5 +168,11 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
 }
 .save-actions :deep(.van-button:first-child) {
   grid-column: 1 / -1;
+}
+@media (min-width: 640px) {
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

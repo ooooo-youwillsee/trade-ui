@@ -2,7 +2,7 @@ import { computed, effectScope, reactive, ref, watch } from 'vue';
 import { calculateMartingale, normalizeMartingaleInput } from './martingale';
 
 // 马丁策略 store 工厂：抽出合约/现货马丁共同的策略管理和本地持久化流程。
-const STORAGE_VERSION = 1;
+const STORAGE_VERSION = 2;
 
 // 通过固定 mode 生成对应市场的马丁策略 composable，避免页面误改交易模式。
 export function createMartingaleStrategyStore({ defaultInput, mode, newName, presets, storageKey }) {
@@ -13,7 +13,7 @@ export function createMartingaleStrategyStore({ defaultInput, mode, newName, pre
     if (store) return store;
 
     // mode 被写入 form 和持久化策略，确保现货/合约计算口径稳定。
-    const strategies = ref(loadStrategies(storageKey, defaultInput, mode));
+    const strategies = ref(loadStrategies(storageKey, mode));
     const selectedId = ref(strategies.value[0]?.id ?? '');
     const form = reactive({ ...defaultInput, mode });
     const scope = effectScope(true);
@@ -89,11 +89,13 @@ export function createMartingaleStrategyStore({ defaultInput, mode, newName, pre
 
     function duplicateStrategy() {
       // 复制策略时保留参数，替换 id、更新时间和名称。
-      const strategy = createStrategy({
-        ...stripMeta(form),
-        mode,
-        name: uniqueStrategyName(strategies.value, `${form.name || '马丁策略'} 副本`),
-      });
+      const strategy = createStrategy(
+        normalizeMartingaleInput({
+          ...form,
+          mode,
+          name: uniqueStrategyName(strategies.value, `${form.name || '马丁策略'} 副本`),
+        }),
+      );
       strategies.value = [strategy, ...strategies.value];
       selectedId.value = strategy.id;
       persistStrategies(storageKey, strategies.value);
@@ -189,14 +191,35 @@ function createStrategy(input) {
   };
 }
 
-// 读取本地策略时兼容旧数组格式，并强制写回当前固定 mode。
-function loadStrategies(storageKey, defaultInput, mode) {
+// 仅恢复 v2 数据；旧版本和非法数据直接清空，不执行迁移。
+function loadStrategies(storageKey, mode) {
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    const savedStrategies = Array.isArray(saved) ? saved : saved?.strategies;
-    if (Array.isArray(savedStrategies) && savedStrategies.length > 0) {
-      return savedStrategies.map((strategy) => ({ ...defaultInput, ...strategy, mode }));
+    const serialized = localStorage.getItem(storageKey);
+    if (!serialized) return [];
+    const saved = JSON.parse(serialized);
+    if (saved?.version !== STORAGE_VERSION || !Array.isArray(saved.strategies)) {
+      localStorage.removeItem(storageKey);
+      return [];
     }
+    const ids = new Set();
+    return saved.strategies.map((strategy) => {
+      if (
+        typeof strategy?.id !== 'string' ||
+        !strategy.id ||
+        ids.has(strategy.id) ||
+        !Number.isFinite(strategy.updatedAt)
+      ) {
+        throw new Error('马丁策略存储结构无效');
+      }
+      const input = normalizeMartingaleInput({ ...strategy, mode });
+      calculateMartingale(input);
+      ids.add(strategy.id);
+      return {
+        id: strategy.id,
+        updatedAt: strategy.updatedAt,
+        ...input,
+      };
+    });
   } catch {
     localStorage.removeItem(storageKey);
   }
@@ -217,24 +240,6 @@ function persistStrategies(storageKey, strategies) {
   } catch {
     // 浏览器存储不可用时，保留当前内存工作流。
   }
-}
-
-// 去除元信息并把表单数字字段转为 Number，保证复制后的策略可直接计算。
-function stripMeta(strategy) {
-  const { id, updatedAt, ...input } = strategy;
-  return {
-    ...input,
-    currentPrice: Number(input.currentPrice),
-    firstOrderAmount: Number(input.firstOrderAmount),
-    multiplier: Number(input.multiplier),
-    maxLayers: Number(input.maxLayers),
-    triggerPercent: Number(input.triggerPercent),
-    takeProfitPercent: Number(input.takeProfitPercent),
-    totalCapital: Number(input.totalCapital),
-    leverage: Number(input.leverage),
-    additionalMargin: Number(input.additionalMargin),
-    maintenanceMarginRate: Number(input.maintenanceMarginRate),
-  };
 }
 
 // 同名策略自动追加序号，避免列表识别困难。

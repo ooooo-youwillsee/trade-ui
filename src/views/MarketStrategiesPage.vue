@@ -211,7 +211,7 @@ function spotGridCard(item) {
   };
 }
 
-// 马丁卡片根据当前市场切换强平价或止盈价展示口径。
+// 马丁卡片统一展示当前执行进度与浮动盈亏，再按市场补充风险或止盈信息。
 function martingaleCard(item) {
   const { strategy, calculation } = item;
   const mode = isContract.value ? '合约' : '现货';
@@ -231,15 +231,15 @@ function martingaleCard(item) {
       ? [
           ['参数异常', '-'],
           ['层数', '-'],
-          ['止盈', '-'],
+          [isContract.value ? '强平价' : '止盈价', '-'],
         ]
       : [
-          ['可执行层数', `${calculation.result.executableLayers}/${calculation.result.layers.length}`],
-          ['资金需求', formatNumber(calculation.result.maxCapitalRequired, 2)],
+          ['当前层数', `${calculation.result.currentExecutedLayers}/${calculation.result.layers.length}`],
+          ['浮动盈亏', formatNumber(calculation.result.currentFloatingProfitLoss, 2)],
           [
             isContract.value ? '强平价' : '止盈价',
             formatNumber(
-              isContract.value ? calculation.result.liquidationPrice : calculation.result.maxTakeProfitPrice,
+              isContract.value ? calculation.result.liquidationPrice : calculation.result.currentTakeProfitPrice,
               2,
             ),
           ],
