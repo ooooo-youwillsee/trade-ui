@@ -2,7 +2,7 @@ import { computed, effectScope, reactive, ref, watch } from 'vue';
 import { calculateMartingale, normalizeMartingaleInput } from './martingale';
 
 // 马丁策略 store 工厂：抽出合约/现货马丁共同的策略管理和本地持久化流程。
-const STORAGE_VERSION = 2;
+const STORAGE_VERSION = 3;
 
 // 通过固定 mode 生成对应市场的马丁策略 composable，避免页面误改交易模式。
 export function createMartingaleStrategyStore({ defaultInput, mode, newName, presets, storageKey }) {
@@ -191,7 +191,7 @@ function createStrategy(input) {
   };
 }
 
-// 仅恢复 v2 数据；旧版本和非法数据直接清空，不执行迁移。
+// 仅恢复 v3 数据；旧版本和非法数据直接清空，不执行迁移。
 function loadStrategies(storageKey, mode) {
   try {
     const serialized = localStorage.getItem(storageKey);

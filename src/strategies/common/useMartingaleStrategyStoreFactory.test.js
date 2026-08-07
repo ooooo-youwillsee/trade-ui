@@ -27,6 +27,7 @@ describe('createMartingaleStrategyStore', () => {
 
   it.each([
     ['v1 envelope', JSON.stringify({ version: 1, strategies: [{ name: 'old' }] })],
+    ['v2 envelope', JSON.stringify({ version: 2, strategies: [{ ...defaultSpotMartingaleInput }] })],
     ['bare array', JSON.stringify([{ name: 'old' }])],
     ['missing version', JSON.stringify({ strategies: [{ name: 'old' }] })],
     ['broken json', '{broken'],
@@ -50,9 +51,9 @@ describe('createMartingaleStrategyStore', () => {
         { ...defaultSpotMartingaleInput, id: 'duplicate', updatedAt: 2 },
       ],
     ],
-  ])('clears structurally invalid v2 data: %s', (name, strategies) => {
-    const storageKey = `martingale-invalid-v2-${name}`;
-    localStorage.setItem(storageKey, JSON.stringify({ version: 2, strategies }));
+  ])('clears structurally invalid v3 data: %s', (name, strategies) => {
+    const storageKey = `martingale-invalid-v3-${name}`;
+    localStorage.setItem(storageKey, JSON.stringify({ version: 3, strategies }));
 
     const store = createStore({ storageKey });
 
@@ -63,12 +64,12 @@ describe('createMartingaleStrategyStore', () => {
   it.each([
     ['spot', MARTINGALE_MODE_SPOT, defaultSpotMartingaleInput],
     ['futures', MARTINGALE_MODE_FUTURES, defaultContractMartingaleInput],
-  ])('restores valid v2 %s strategies with numeric entry price', (_name, mode, defaultInput) => {
-    const storageKey = `martingale-v2-${mode}`;
+  ])('restores valid v3 %s strategies with numeric prices and fee rate', (_name, mode, defaultInput) => {
+    const storageKey = `martingale-v3-${mode}`;
     localStorage.setItem(
       storageKey,
       JSON.stringify({
-        version: 2,
+        version: 3,
         strategies: [
           {
             ...defaultInput,
@@ -76,6 +77,7 @@ describe('createMartingaleStrategyStore', () => {
             updatedAt: 1,
             entryPrice: '2100.5',
             currentPrice: '2050',
+            feeRate: '0.02',
           },
         ],
       }),
@@ -86,11 +88,12 @@ describe('createMartingaleStrategyStore', () => {
     expect(store.strategies.value).toHaveLength(1);
     expect(store.activeInput.value.entryPrice).toBe(2100.5);
     expect(store.activeInput.value.currentPrice).toBe(2050);
+    expect(store.activeInput.value.feeRate).toBe(0.02);
     expect(store.activeInput.value.mode).toBe(mode);
   });
 
-  it('saves and duplicates only the v2 input contract', () => {
-    const storageKey = 'martingale-save-v2';
+  it('saves and duplicates only the v3 input contract', () => {
+    const storageKey = 'martingale-save-v3';
     const store = createStore({ storageKey });
     store.addStrategy();
     Object.assign(store.form, {
@@ -109,8 +112,10 @@ describe('createMartingaleStrategyStore', () => {
 
     expect(saved.ok).toBe(true);
     expect(saved.strategy.entryPrice).toBe(100);
+    expect(saved.strategy.feeRate).toBe(0.02);
     expect(duplicated.entryPrice).toBe(100);
-    expect(persisted.version).toBe(2);
+    expect(duplicated.feeRate).toBe(0.02);
+    expect(persisted.version).toBe(3);
     expect(persisted.strategies).toHaveLength(2);
     for (const strategy of persisted.strategies) {
       expect(strategy.entryPrice).toBe(100);

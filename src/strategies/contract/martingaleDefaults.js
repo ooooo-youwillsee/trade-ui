@@ -11,6 +11,7 @@ export const defaultContractMartingaleInput = {
   maxLayers: 200,
   triggerPercent: 0.2,
   takeProfitPercent: 0.2,
+  feeRate: 0.02,
   leverage: 100,
   additionalMargin: 0,
 };

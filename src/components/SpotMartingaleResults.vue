@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { BarChart3, Layers3, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
 import { formatNumber, formatPercent, formatProfitWithRate } from '../utils/formatters';
@@ -8,6 +8,8 @@ const props = defineProps({
   activeInput: { type: Object, default: null },
   result: { type: Object, default: null },
 });
+
+const activeLayerSections = ref([]);
 
 const sideLabel = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? TrendingUp : TrendingDown));
@@ -24,6 +26,7 @@ const inputRows = computed(() => [
   ['最大层数', String(props.activeInput?.maxLayers ?? '-')],
   ['触发幅度', formatPercent(props.activeInput?.triggerPercent ?? 0, 4)],
   ['止盈比例', formatPercent(props.activeInput?.takeProfitPercent ?? 0, 4)],
+  ['单边手续费率', formatPercent(props.activeInput?.feeRate ?? 0, 4)],
 ]);
 const summaryMetrics = computed(() => [
   ['入场价', formatNumber(props.result?.entryPrice ?? 0, 4), false],
@@ -35,7 +38,6 @@ const summaryMetrics = computed(() => [
     (props.result?.currentFloatingProfitLoss ?? 0) < 0,
   ],
   ['当前止盈价', formatNumber(props.result?.currentTakeProfitPrice ?? 0, 4), false],
-  ['满层止盈收益', formatNumber(props.result?.maxTakeProfitProfit ?? 0, 4), false],
 ]);
 </script>
 
@@ -91,57 +93,102 @@ const summaryMetrics = computed(() => [
           <span>当前持仓均价</span><strong>{{ formatNumber(result?.currentAverageEntryPrice ?? 0, 4) }}</strong>
         </div>
         <div class="position-row">
-          <span>当前止盈收益</span><strong>{{ formatNumber(result?.currentTakeProfitProfit ?? 0, 4) }}</strong>
+          <span>当前止盈毛利润</span>
+          <strong>{{
+            formatProfitWithRate(
+              result?.currentTakeProfitGrossProfitAmount ?? 0,
+              result?.currentTakeProfitGrossProfitRate ?? 0,
+            )
+          }}</strong>
+        </div>
+        <div class="position-row">
+          <span>当前止盈净利润</span>
+          <strong :class="{ negative: (result?.currentTakeProfitNetProfitAmount ?? 0) < 0 }">{{
+            formatProfitWithRate(
+              result?.currentTakeProfitNetProfitAmount ?? 0,
+              result?.currentTakeProfitNetProfitRate ?? 0,
+            )
+          }}</strong>
+        </div>
+        <div class="position-row">
+          <span>满层止盈毛利润</span>
+          <strong>{{
+            formatProfitWithRate(result?.maxTakeProfitGrossProfitAmount ?? 0, result?.maxTakeProfitGrossProfitRate ?? 0)
+          }}</strong>
+        </div>
+        <div class="position-row">
+          <span>满层止盈净利润</span>
+          <strong :class="{ negative: (result?.maxTakeProfitNetProfitAmount ?? 0) < 0 }">{{
+            formatProfitWithRate(result?.maxTakeProfitNetProfitAmount ?? 0, result?.maxTakeProfitNetProfitRate ?? 0)
+          }}</strong>
         </div>
       </div>
     </section>
 
-    <section class="detail-card">
-      <div class="section-title">
-        <Layers3 :size="18" />
-        <span>层级明细</span>
-        <small>{{ result?.layers.length ?? 0 }} 层</small>
-      </div>
-      <div class="layer-list">
-        <article
-          v-for="layer in result?.layers ?? []"
-          :key="layer.layer"
-          :class="['layer-card', { planned: layer.layer > (result?.currentExecutedLayers ?? 0) }]"
-        >
-          <div class="layer-card__head">
-            <strong>第 {{ layer.layer }} 层</strong>
-            <van-tag :type="layer.layer <= (result?.currentExecutedLayers ?? 0) ? 'primary' : 'default'" plain>
-              {{ layer.layer <= (result?.currentExecutedLayers ?? 0) ? '已执行' : '计划中' }}
-            </van-tag>
+    <section class="detail-card layer-detail-card">
+      <van-collapse v-model="activeLayerSections">
+        <van-collapse-item name="layers">
+          <template #title>
+            <div class="section-title collapse-title">
+              <Layers3 :size="18" />
+              <span>层级明细</span>
+              <small>{{ result?.layers.length ?? 0 }} 层</small>
+            </div>
+          </template>
+          <div class="layer-list">
+            <article
+              v-for="layer in result?.layers ?? []"
+              :key="layer.layer"
+              :class="['layer-card', { planned: layer.layer > (result?.currentExecutedLayers ?? 0) }]"
+            >
+              <div class="layer-card__head">
+                <strong>第 {{ layer.layer }} 层</strong>
+                <van-tag :type="layer.layer <= (result?.currentExecutedLayers ?? 0) ? 'primary' : 'default'" plain>
+                  {{ layer.layer <= (result?.currentExecutedLayers ?? 0) ? '已执行' : '计划中' }}
+                </van-tag>
+              </div>
+              <div class="layer-grid">
+                <span
+                  >触发价 <b>{{ formatNumber(layer.triggerPrice, 4) }}</b></span
+                >
+                <span
+                  >本层金额 <b>{{ formatNumber(layer.orderAmount, 2) }}</b></span
+                >
+                <span
+                  >累计投入 <b>{{ formatNumber(layer.capitalUsed, 2) }}</b></span
+                >
+                <span
+                  >成交数量 <b>{{ formatNumber(layer.quantity, 8) }}</b></span
+                >
+                <span
+                  >持仓均价 <b>{{ formatNumber(layer.averageEntryPrice, 4) }}</b></span
+                >
+                <span
+                  >止盈价 <b>{{ formatNumber(layer.takeProfitPrice, 4) }}</b></span
+                >
+                <span>
+                  触发时浮动盈亏
+                  <b :class="{ negative: layer.triggerFloatingProfitLoss < 0 }">{{
+                    formatProfitWithRate(layer.triggerFloatingProfitLoss ?? 0, layer.triggerFloatingProfitRate ?? 0)
+                  }}</b>
+                </span>
+                <span>
+                  止盈毛利润
+                  <b>{{
+                    formatProfitWithRate(layer.takeProfitGrossProfitAmount ?? 0, layer.takeProfitGrossProfitRate ?? 0)
+                  }}</b>
+                </span>
+                <span>
+                  止盈净利润
+                  <b :class="{ negative: layer.takeProfitNetProfitAmount < 0 }">{{
+                    formatProfitWithRate(layer.takeProfitNetProfitAmount ?? 0, layer.takeProfitNetProfitRate ?? 0)
+                  }}</b>
+                </span>
+              </div>
+            </article>
           </div>
-          <div class="layer-grid">
-            <span
-              >触发价 <b>{{ formatNumber(layer.triggerPrice, 4) }}</b></span
-            >
-            <span
-              >本层金额 <b>{{ formatNumber(layer.orderAmount, 2) }}</b></span
-            >
-            <span
-              >累计投入 <b>{{ formatNumber(layer.capitalUsed, 2) }}</b></span
-            >
-            <span
-              >成交数量 <b>{{ formatNumber(layer.quantity, 8) }}</b></span
-            >
-            <span
-              >持仓均价 <b>{{ formatNumber(layer.averageEntryPrice, 4) }}</b></span
-            >
-            <span
-              >止盈价 <b>{{ formatNumber(layer.takeProfitPrice, 4) }}</b></span
-            >
-            <span>
-              当前盈亏
-              <b :class="{ negative: layer.currentFloatingProfitLoss < 0 }">{{
-                formatProfitWithRate(layer.currentFloatingProfitLoss ?? 0, layer.currentFloatingProfitRate ?? 0)
-              }}</b>
-            </span>
-          </div>
-        </article>
-      </div>
+        </van-collapse-item>
+      </van-collapse>
     </section>
   </div>
 </template>
@@ -286,5 +333,21 @@ const summaryMetrics = computed(() => [
 }
 .negative {
   color: var(--trade-down) !important;
+}
+.layer-detail-card {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+}
+.layer-detail-card :deep(.van-cell) {
+  padding: 14px;
+  background: transparent;
+}
+.layer-detail-card :deep(.van-collapse-item__content) {
+  padding: 0 14px 14px;
+  background: transparent;
+}
+.collapse-title {
+  width: 100%;
 }
 </style>

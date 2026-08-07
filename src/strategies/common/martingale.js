@@ -19,6 +19,7 @@ export function normalizeMartingaleInput(rawInput) {
     maxLayers: Number(rawInput.maxLayers),
     triggerPercent: Number(rawInput.triggerPercent),
     takeProfitPercent: Number(rawInput.takeProfitPercent),
+    feeRate: Number(rawInput.feeRate),
     leverage: Number(rawInput.leverage),
     additionalMargin: Number(rawInput.additionalMargin),
   };
@@ -53,14 +54,21 @@ export function calculateMartingale(rawInput) {
 
     const averageEntryPrice = cumulativeCost / cumulativeQuantity;
     const takeProfitPrice = takeProfitTarget(input.side, averageEntryPrice, input.takeProfitPercent);
-    const takeProfitProfit = Math.abs(takeProfitPrice - averageEntryPrice) * cumulativeQuantity;
-    const currentFloatingProfitLoss = calculateFloatingProfitLoss(
+    const triggerFloatingProfitLoss = calculateFloatingProfitLoss(
       input.side,
-      input.currentPrice,
+      triggerPrice,
       averageEntryPrice,
       cumulativeQuantity,
     );
-    const currentFloatingProfitRate = (currentFloatingProfitLoss / cumulativeNotional) * 100;
+    const triggerFloatingProfitRate = (triggerFloatingProfitLoss / cumulativeNotional) * 100;
+    const takeProfit = calculateTakeProfitMetrics(
+      input.side,
+      triggerPrice,
+      takeProfitPrice,
+      quantity,
+      notional,
+      input.feeRate,
+    );
     const capitalUsed = input.mode === MARTINGALE_MODE_FUTURES ? cumulativeMargin : cumulativeInvestment;
 
     assertCalculableMartingaleValues(
@@ -72,9 +80,9 @@ export function calculateMartingale(rawInput) {
       cumulativeCost,
       averageEntryPrice,
       takeProfitPrice,
-      takeProfitProfit,
-      currentFloatingProfitLoss,
-      currentFloatingProfitRate,
+      triggerFloatingProfitLoss,
+      triggerFloatingProfitRate,
+      ...Object.values(takeProfit),
       capitalUsed,
     );
 
@@ -91,9 +99,9 @@ export function calculateMartingale(rawInput) {
       cumulativeQuantity,
       averageEntryPrice,
       takeProfitPrice,
-      takeProfitProfit,
-      currentFloatingProfitLoss,
-      currentFloatingProfitRate,
+      triggerFloatingProfitLoss,
+      triggerFloatingProfitRate,
+      ...takeProfit,
       capitalUsed,
     });
   }
@@ -134,10 +142,20 @@ export function calculateMartingale(rawInput) {
         ? currentPosition.margin + input.additionalMargin + currentPosition.floatingProfitLoss
         : 0,
     currentTakeProfitPrice: currentPosition.takeProfitPrice,
-    currentTakeProfitProfit: currentPosition.takeProfitProfit,
     maxAverageEntryPrice: maxPosition.averageEntryPrice,
     maxTakeProfitPrice: maxPosition.takeProfitPrice,
-    maxTakeProfitProfit: maxPosition.takeProfitProfit,
+    ...(input.mode === MARTINGALE_MODE_SPOT
+      ? {
+          currentTakeProfitGrossProfitAmount: currentPosition.takeProfitGrossProfitAmount,
+          currentTakeProfitGrossProfitRate: currentPosition.takeProfitGrossProfitRate,
+          currentTakeProfitNetProfitAmount: currentPosition.takeProfitNetProfitAmount,
+          currentTakeProfitNetProfitRate: currentPosition.takeProfitNetProfitRate,
+          maxTakeProfitGrossProfitAmount: maxPosition.takeProfitGrossProfitAmount,
+          maxTakeProfitGrossProfitRate: maxPosition.takeProfitGrossProfitRate,
+          maxTakeProfitNetProfitAmount: maxPosition.takeProfitNetProfitAmount,
+          maxTakeProfitNetProfitRate: maxPosition.takeProfitNetProfitRate,
+        }
+      : {}),
     liquidationPrice,
     liquidationDistance,
   };
@@ -157,6 +175,8 @@ function validateMartingaleInput(input) {
   if (input.triggerPercent <= 0) throw new Error('触发幅度必须大于 0');
   if (input.triggerPercent >= 100 && input.side === MARTINGALE_SIDE_LONG) throw new Error('做多触发幅度必须小于 100%');
   if (input.takeProfitPercent <= 0) throw new Error('止盈比例必须大于 0');
+  if (!Number.isFinite(input.feeRate) || input.feeRate < 0 || input.feeRate >= 100)
+    throw new Error('手续费率必须大于等于 0 且小于 100');
   if (input.mode === MARTINGALE_MODE_FUTURES && input.leverage <= 0) throw new Error('合约杠杆必须大于 0');
   if (!Number.isFinite(input.additionalMargin)) throw new Error('马丁参数组合超出可计算范围');
   if (input.additionalMargin < 0) throw new Error('追加保证金不能小于 0');
@@ -208,14 +228,47 @@ function summarizeLayers(input, layers) {
     averageEntryPrice,
     summary.quantity,
   );
-  const takeProfitProfit = Math.abs(takeProfitPrice - averageEntryPrice) * summary.quantity;
+  const takeProfit =
+    input.mode === MARTINGALE_MODE_SPOT
+      ? calculateTakeProfitMetrics(
+          input.side,
+          averageEntryPrice,
+          takeProfitPrice,
+          summary.quantity,
+          summary.notional,
+          input.feeRate,
+        )
+      : {};
 
   return {
     ...summary,
     averageEntryPrice,
     floatingProfitLoss,
     takeProfitPrice,
-    takeProfitProfit,
+    ...takeProfit,
+  };
+}
+
+function calculateTakeProfitMetrics(side, openPrice, takeProfitPrice, quantity, openNotional, feeRate) {
+  if (quantity <= 0 || openPrice <= 0 || takeProfitPrice <= 0 || openNotional <= 0) {
+    return {
+      takeProfitGrossProfitAmount: 0,
+      takeProfitGrossProfitRate: 0,
+      takeProfitNetProfitAmount: 0,
+      takeProfitNetProfitRate: 0,
+    };
+  }
+
+  const takeProfitGrossProfitAmount = calculateFloatingProfitLoss(side, takeProfitPrice, openPrice, quantity);
+  const closeNotional = quantity * takeProfitPrice;
+  const totalFee = ((openNotional + closeNotional) * feeRate) / 100;
+  const takeProfitNetProfitAmount = takeProfitGrossProfitAmount - totalFee;
+
+  return {
+    takeProfitGrossProfitAmount,
+    takeProfitGrossProfitRate: (takeProfitGrossProfitAmount / openNotional) * 100,
+    takeProfitNetProfitAmount,
+    takeProfitNetProfitRate: (takeProfitNetProfitAmount / openNotional) * 100,
   };
 }
 

@@ -69,12 +69,19 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
         <van-field v-model.number="form.firstOrderAmount" label="首单金额" type="number" input-align="right" />
         <van-field v-model.number="form.multiplier" label="加仓倍数" type="number" input-align="right" />
         <van-field v-model.number="form.maxLayers" label="最大层数" type="number" input-align="right" />
-        <van-field v-model.number="form.triggerPercent" label="触发幅度 %" type="number" input-align="right" />
+        <van-field v-model.number="form.triggerPercent" label="触发幅度" type="number" input-align="right">
+          <template #button>%</template>
+        </van-field>
       </div>
     </van-cell-group>
 
     <van-cell-group inset title="止盈参数">
-      <van-field v-model.number="form.takeProfitPercent" label="止盈比例 %" type="number" input-align="right" />
+      <van-field v-model.number="form.takeProfitPercent" label="止盈比例" type="number" input-align="right">
+        <template #button>%</template>
+      </van-field>
+      <van-field v-model.number="form.feeRate" label="单边手续费率" type="number" input-align="right">
+        <template #button>%</template>
+      </van-field>
     </van-cell-group>
 
     <div class="save-actions">
