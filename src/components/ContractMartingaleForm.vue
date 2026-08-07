@@ -58,30 +58,18 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
     </van-cell-group>
 
     <van-cell-group class="price-group" inset title="行情价格">
-      <div class="field-grid price-grid">
-        <van-field v-model.number="form.entryPrice" label="入场价" type="number" input-align="right" />
-        <van-field v-model.number="form.currentPrice" label="当前价" type="number" input-align="right" />
-      </div>
+      <van-field v-model.number="form.entryPrice" label="入场价" type="number" input-align="right" />
+      <van-field v-model.number="form.currentPrice" label="当前价" type="number" input-align="right" />
     </van-cell-group>
 
-    <van-cell-group inset title="加仓参数">
-      <div class="field-grid">
-        <van-field v-model.number="form.firstOrderAmount" label="首单保证金" type="number" input-align="right" />
-        <van-field v-model.number="form.multiplier" label="加仓倍数" type="number" input-align="right" />
-        <van-field v-model.number="form.maxLayers" label="最大层数" type="number" input-align="right" />
-        <van-field v-model.number="form.triggerPercent" label="触发幅度 %" type="number" input-align="right" />
-      </div>
-    </van-cell-group>
-
-    <van-cell-group inset title="止盈参数">
+    <van-cell-group inset title="策略参数">
+      <van-field v-model.number="form.triggerPercent" label="触发幅度 %" type="number" input-align="right" />
       <van-field v-model.number="form.takeProfitPercent" label="止盈比例 %" type="number" input-align="right" />
-    </van-cell-group>
-
-    <van-cell-group inset title="合约风险">
-      <div class="field-grid">
-        <van-field v-model.number="form.leverage" label="杠杆倍数" type="number" input-align="right" />
-        <van-field v-model.number="form.additionalMargin" label="追加保证金" type="number" input-align="right" />
-      </div>
+      <van-field v-model.number="form.leverage" label="杠杆倍数" type="number" input-align="right" />
+      <van-field v-model.number="form.firstOrderAmount" label="首单保证金" type="number" input-align="right" />
+      <van-field v-model.number="form.multiplier" label="加仓倍数" type="number" input-align="right" />
+      <van-field v-model.number="form.maxLayers" label="最大层数" type="number" input-align="right" />
+      <van-field v-model.number="form.additionalMargin" label="追加保证金" type="number" input-align="right" />
     </van-cell-group>
 
     <div class="save-actions">
@@ -163,7 +151,7 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
   color: var(--trade-up);
   font-weight: var(--trade-weight-strong);
 }
-.price-grid :deep(.van-field__label) {
+.price-group :deep(.van-field__label) {
   color: var(--trade-text);
   font-weight: var(--trade-weight-strong);
 }
@@ -175,11 +163,5 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
 }
 .save-actions :deep(.van-button:first-child) {
   grid-column: 1 / -1;
-}
-@media (min-width: 640px) {
-  .field-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 </style>

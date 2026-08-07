@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { BarChart3, Layers3, ShieldCheck, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
-import { formatNumber, formatPercent, formatProfitWithRate } from '../utils/formatters';
+import { formatNumber, formatPercent, formatPriceWithReferenceChange, formatProfitWithRate } from '../utils/formatters';
 
 const props = defineProps({
   activeInput: { type: Object, default: null },
@@ -11,6 +11,12 @@ const props = defineProps({
 
 const sideLabel = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? TrendingUp : TrendingDown));
+const currentPriceWithChange = computed(() => {
+  const currentPrice = props.result?.currentPrice;
+  const entryPrice = props.result?.entryPrice;
+  if (!Number.isFinite(currentPrice) || !Number.isFinite(entryPrice) || entryPrice <= 0) return '-';
+  return formatPriceWithReferenceChange(currentPrice, entryPrice, 4, 2);
+});
 const health = computed(() => {
   if (!props.result) return { label: '参数异常', type: 'danger' };
   if (props.result.liquidationPrice > 0 && props.result.liquidationDistance <= 0)
@@ -34,15 +40,13 @@ const inputRows = computed(() => [
 ]);
 const summaryMetrics = computed(() => [
   ['入场价', formatNumber(props.result?.entryPrice ?? 0, 4), false],
-  ['当前价', formatNumber(props.result?.currentPrice ?? 0, 4), false],
+  ['当前价', currentPriceWithChange.value, false],
   ['当前执行层', `${props.result?.currentExecutedLayers ?? 0}/${props.result?.layers.length ?? 0}`, false],
   [
     '浮动盈亏',
     formatNumber(props.result?.currentFloatingProfitLoss ?? 0, 4),
     (props.result?.currentFloatingProfitLoss ?? 0) < 0,
   ],
-  ['估算强平价', formatNumber(props.result?.liquidationPrice ?? 0, 4), false],
-  ['强平距离', formatPercent(props.result?.liquidationDistance ?? 0, 2), (props.result?.liquidationDistance ?? 0) < 10],
 ]);
 </script>
 
