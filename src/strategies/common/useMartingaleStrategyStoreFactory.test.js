@@ -26,12 +26,113 @@ describe('createMartingaleStrategyStore', () => {
   });
 
   it.each([
-    ['v1 envelope', JSON.stringify({ version: 1, strategies: [{ name: 'old' }] })],
-    ['v2 envelope', JSON.stringify({ version: 2, strategies: [{ ...defaultSpotMartingaleInput }] })],
-    ['bare array', JSON.stringify([{ name: 'old' }])],
-    ['missing version', JSON.stringify({ strategies: [{ name: 'old' }] })],
+    ['legacy version', { version: 1, strategies: [{ name: 'legacy strategy', currentPrice: '2050' }] }],
+    ['unknown version', { version: 999, strategies: [{ name: 'legacy strategy', currentPrice: '2050' }] }],
+    ['missing version', { strategies: [{ name: 'legacy strategy', currentPrice: '2050' }] }],
+    ['bare array', [{ name: 'legacy strategy', currentPrice: '2050' }]],
+  ])('restores %s without using its version', (name, saved) => {
+    const storageKey = `martingale-compatible-${name}`;
+    localStorage.setItem(storageKey, JSON.stringify(saved));
+
+    const store = createStore({ storageKey });
+    const strategy = store.strategies.value[0];
+    const persisted = JSON.parse(localStorage.getItem(storageKey));
+
+    expect(store.strategies.value).toHaveLength(1);
+    expect(strategy).toMatchObject({
+      name: 'legacy strategy',
+      mode: MARTINGALE_MODE_SPOT,
+      entryPrice: defaultSpotMartingaleInput.entryPrice,
+      currentPrice: 2050,
+      feeRate: defaultSpotMartingaleInput.feeRate,
+      priceGapMultiplier: defaultSpotMartingaleInput.priceGapMultiplier,
+    });
+    expect(strategy.id).toEqual(expect.any(String));
+    expect(strategy.updatedAt).toEqual(expect.any(Number));
+    expect(persisted.version).toBe(4);
+    expect(persisted.strategies).toEqual(store.strategies.value);
+  });
+
+  it.each([
+    ['spot', MARTINGALE_MODE_SPOT, MARTINGALE_MODE_FUTURES, defaultSpotMartingaleInput],
+    ['futures', MARTINGALE_MODE_FUTURES, MARTINGALE_MODE_SPOT, defaultContractMartingaleInput],
+  ])('fills missing %s inputs from its market defaults and forces its mode', (_name, mode, savedMode, defaultInput) => {
+    const storageKey = `martingale-defaults-${mode}`;
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        version: 'ignored',
+        strategies: [{ name: 'partial strategy', mode: savedMode, currentPrice: '2100', totalCapital: 1000 }],
+      }),
+    );
+
+    const store = createStore({ defaultInput, mode, storageKey });
+    const strategy = store.strategies.value[0];
+
+    expect(strategy).toMatchObject({
+      name: 'partial strategy',
+      mode,
+      entryPrice: defaultInput.entryPrice,
+      currentPrice: 2100,
+      firstOrderAmount: defaultInput.firstOrderAmount,
+      multiplier: defaultInput.multiplier,
+      priceGapMultiplier: defaultInput.priceGapMultiplier,
+      feeRate: defaultInput.feeRate,
+      leverage: defaultInput.leverage,
+    });
+    expect(strategy).not.toHaveProperty('totalCapital');
+  });
+
+  it('repairs metadata, skips invalid records, and keeps rewritten v4 data stable', () => {
+    const storageKey = 'martingale-repair-metadata';
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        version: 2,
+        strategies: [
+          { ...defaultSpotMartingaleInput, name: 'kept id', id: 'duplicate', updatedAt: 1 },
+          { ...defaultSpotMartingaleInput, name: 'replaced duplicate', id: 'duplicate', updatedAt: 'invalid' },
+          { ...defaultSpotMartingaleInput, name: 'generated metadata' },
+          { ...defaultSpotMartingaleInput, name: 'invalid strategy', currentPrice: null },
+          null,
+        ],
+      }),
+    );
+
+    const firstStore = createStore({ storageKey });
+    const firstIds = firstStore.strategies.value.map((strategy) => strategy.id);
+    const persisted = JSON.parse(localStorage.getItem(storageKey));
+    const secondStore = createStore({ storageKey });
+
+    expect(firstStore.strategies.value.map((strategy) => strategy.name)).toEqual([
+      'kept id',
+      'replaced duplicate',
+      'generated metadata',
+    ]);
+    expect(new Set(firstIds).size).toBe(3);
+    expect(firstIds[0]).toBe('duplicate');
+    expect(firstStore.strategies.value[0].updatedAt).toBe(1);
+    expect(firstStore.strategies.value.slice(1).every((strategy) => Number.isFinite(strategy.updatedAt))).toBe(true);
+    expect(persisted).toMatchObject({ version: 4, strategies: firstStore.strategies.value });
+    expect(secondStore.strategies.value.map((strategy) => strategy.id)).toEqual(firstIds);
+  });
+
+  it.each([
     ['broken json', '{broken'],
-  ])('clears %s without migrating it', (name, serialized) => {
+    ['non-array strategies', JSON.stringify({ version: 4, strategies: {} })],
+    ['missing strategies', JSON.stringify({ version: 4 })],
+    ['empty strategies', JSON.stringify({ version: 4, strategies: [] })],
+    [
+      'all invalid strategies',
+      JSON.stringify({
+        strategies: [
+          { ...defaultSpotMartingaleInput, currentPrice: null },
+          { ...defaultSpotMartingaleInput, feeRate: '' },
+          { ...defaultSpotMartingaleInput, entryPrice: true },
+        ],
+      }),
+    ],
+  ])('clears %s when no strategy can be restored', (name, serialized) => {
     const storageKey = `martingale-invalid-${name}`;
     localStorage.setItem(storageKey, serialized);
 
@@ -42,34 +143,14 @@ describe('createMartingaleStrategyStore', () => {
   });
 
   it.each([
-    ['missing entry price', [{ ...defaultSpotMartingaleInput, id: 'spot-1', updatedAt: 1, entryPrice: null }]],
-    ['missing id', [{ ...defaultSpotMartingaleInput, updatedAt: 1 }]],
-    [
-      'duplicate id',
-      [
-        { ...defaultSpotMartingaleInput, id: 'duplicate', updatedAt: 1 },
-        { ...defaultSpotMartingaleInput, id: 'duplicate', updatedAt: 2 },
-      ],
-    ],
-  ])('clears structurally invalid v3 data: %s', (name, strategies) => {
-    const storageKey = `martingale-invalid-v3-${name}`;
-    localStorage.setItem(storageKey, JSON.stringify({ version: 3, strategies }));
-
-    const store = createStore({ storageKey });
-
-    expect(store.strategies.value).toEqual([]);
-    expect(localStorage.getItem(storageKey)).toBeNull();
-  });
-
-  it.each([
     ['spot', MARTINGALE_MODE_SPOT, defaultSpotMartingaleInput],
     ['futures', MARTINGALE_MODE_FUTURES, defaultContractMartingaleInput],
-  ])('restores valid v3 %s strategies with numeric prices and fee rate', (_name, mode, defaultInput) => {
-    const storageKey = `martingale-v3-${mode}`;
+  ])('restores valid v4 %s strategies with numeric inputs', (_name, mode, defaultInput) => {
+    const storageKey = `martingale-v4-${mode}`;
     localStorage.setItem(
       storageKey,
       JSON.stringify({
-        version: 3,
+        version: 4,
         strategies: [
           {
             ...defaultInput,
@@ -78,6 +159,8 @@ describe('createMartingaleStrategyStore', () => {
             entryPrice: '2100.5',
             currentPrice: '2050',
             feeRate: '0.02',
+            priceGapMultiplier: '1.5',
+            maxLayers: 3,
           },
         ],
       }),
@@ -89,17 +172,20 @@ describe('createMartingaleStrategyStore', () => {
     expect(store.activeInput.value.entryPrice).toBe(2100.5);
     expect(store.activeInput.value.currentPrice).toBe(2050);
     expect(store.activeInput.value.feeRate).toBe(0.02);
+    expect(store.activeInput.value.priceGapMultiplier).toBe(1.5);
     expect(store.activeInput.value.mode).toBe(mode);
   });
 
-  it('saves and duplicates only the v3 input contract', () => {
-    const storageKey = 'martingale-save-v3';
+  it('saves and duplicates only the v4 input contract', () => {
+    const storageKey = 'martingale-save-v4';
     const store = createStore({ storageKey });
     store.addStrategy();
     Object.assign(store.form, {
       name: 'persisted strategy',
       entryPrice: '100',
       currentPrice: '89',
+      priceGapMultiplier: '1.5',
+      maxLayers: 3,
       totalCapital: 1000,
       maintenanceMarginRate: 0.005,
       includeInitialOrder: false,
@@ -113,12 +199,15 @@ describe('createMartingaleStrategyStore', () => {
     expect(saved.ok).toBe(true);
     expect(saved.strategy.entryPrice).toBe(100);
     expect(saved.strategy.feeRate).toBe(0.02);
+    expect(saved.strategy.priceGapMultiplier).toBe(1.5);
     expect(duplicated.entryPrice).toBe(100);
     expect(duplicated.feeRate).toBe(0.02);
-    expect(persisted.version).toBe(3);
+    expect(duplicated.priceGapMultiplier).toBe(1.5);
+    expect(persisted.version).toBe(4);
     expect(persisted.strategies).toHaveLength(2);
     for (const strategy of persisted.strategies) {
       expect(strategy.entryPrice).toBe(100);
+      expect(strategy.priceGapMultiplier).toBe(1.5);
       expect(strategy).not.toHaveProperty('totalCapital');
       expect(strategy).not.toHaveProperty('maintenanceMarginRate');
       expect(strategy).not.toHaveProperty('includeInitialOrder');

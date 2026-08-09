@@ -16,6 +16,7 @@ export function normalizeMartingaleInput(rawInput) {
     currentPrice: Number(rawInput.currentPrice),
     firstOrderAmount: Number(rawInput.firstOrderAmount),
     multiplier: Number(rawInput.multiplier),
+    priceGapMultiplier: Number(rawInput.priceGapMultiplier),
     maxLayers: Number(rawInput.maxLayers),
     triggerPercent: Number(rawInput.triggerPercent),
     takeProfitPercent: Number(rawInput.takeProfitPercent),
@@ -37,8 +38,14 @@ export function calculateMartingale(rawInput) {
   let cumulativeQuantity = 0;
   let cumulativeCost = 0;
 
+  let cumulativeTriggerRate = 0;
   for (let index = 0; index < input.maxLayers; index += 1) {
-    const triggerPrice = layerTriggerPrice(input, index);
+    if (index > 0) {
+      const triggerStep = (input.triggerPercent / 100) * Math.pow(input.priceGapMultiplier, index - 1);
+      assertCalculableMartingaleValues(true, triggerStep);
+      cumulativeTriggerRate += triggerStep;
+    }
+    const triggerPrice = layerTriggerPrice(input, cumulativeTriggerRate);
     const orderAmount = input.firstOrderAmount * Math.pow(input.multiplier, index);
     const marginAmount = input.mode === MARTINGALE_MODE_FUTURES ? orderAmount : 0;
     const notional = input.mode === MARTINGALE_MODE_FUTURES ? orderAmount * input.leverage : orderAmount;
@@ -177,7 +184,9 @@ function validateMartingaleInput(input) {
   if (input.entryPrice <= 0) throw new Error('入场价必须大于 0');
   if (input.currentPrice <= 0) throw new Error('当前价必须大于 0');
   if (input.firstOrderAmount <= 0) throw new Error('首单金额必须大于 0');
-  if (input.multiplier < 1) throw new Error('加仓倍数必须大于或等于 1');
+  if (input.multiplier < 1) throw new Error('加仓金额倍数必须大于或等于 1');
+  if (!Number.isFinite(input.priceGapMultiplier) || input.priceGapMultiplier < 1)
+    throw new Error('加仓价差倍数必须是有限数字且大于或等于 1');
   if (!Number.isInteger(input.maxLayers) || input.maxLayers <= 0) throw new Error('最大层数必须是正整数');
   if (input.triggerPercent <= 0) throw new Error('触发幅度必须大于 0');
   if (input.triggerPercent >= 100 && input.side === MARTINGALE_SIDE_LONG) throw new Error('做多触发幅度必须小于 100%');
@@ -195,10 +204,12 @@ function assertCalculableMartingaleValues(condition, ...values) {
   }
 }
 
-function layerTriggerPrice(input, index) {
-  const step = input.triggerPercent / 100;
-  if (input.side === MARTINGALE_SIDE_LONG) return input.entryPrice * Math.pow(1 - step, index);
-  return input.entryPrice * Math.pow(1 + step, index);
+function layerTriggerPrice(input, cumulativeTriggerRate) {
+  if (!Number.isFinite(cumulativeTriggerRate) || (input.side === MARTINGALE_SIDE_LONG && cumulativeTriggerRate >= 1)) {
+    throw new Error('马丁参数组合超出可计算范围');
+  }
+  if (input.side === MARTINGALE_SIDE_LONG) return input.entryPrice * (1 - cumulativeTriggerRate);
+  return input.entryPrice * (1 + cumulativeTriggerRate);
 }
 
 function takeProfitTarget(side, averageEntryPrice, takeProfitPercent) {

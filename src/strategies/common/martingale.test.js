@@ -19,6 +19,7 @@ describe('calculateMartingale', () => {
     currentPrice: 100,
     firstOrderAmount: 100,
     multiplier: 2,
+    priceGapMultiplier: 1,
     maxLayers: 3,
     triggerPercent: 10,
     takeProfitPercent: 5,
@@ -31,22 +32,24 @@ describe('calculateMartingale', () => {
     expect(defaultContractMartingaleInput).toMatchObject({
       entryPrice: 2300,
       currentPrice: 2300,
-      firstOrderAmount: 0.5,
-      multiplier: 1,
-      maxLayers: 200,
-      triggerPercent: 0.2,
-      takeProfitPercent: 0.2,
+      firstOrderAmount: 0.2,
+      multiplier: 1.1,
+      priceGapMultiplier: 1.1,
+      maxLayers: 25,
+      triggerPercent: 1.1,
+      takeProfitPercent: 3,
       feeRate: 0.02,
       leverage: 100,
     });
     expect(defaultSpotMartingaleInput).toMatchObject({
       entryPrice: 2300,
       currentPrice: 2300,
-      firstOrderAmount: 0.5,
-      multiplier: 1,
-      maxLayers: 200,
-      triggerPercent: 0.2,
-      takeProfitPercent: 0.2,
+      firstOrderAmount: 0.2,
+      multiplier: 1.1,
+      priceGapMultiplier: 1.1,
+      maxLayers: 25,
+      triggerPercent: 1.1,
+      takeProfitPercent: 3,
       feeRate: 0.02,
       leverage: 1,
     });
@@ -56,8 +59,8 @@ describe('calculateMartingale', () => {
     const atEntry = calculateMartingale(spotInput);
     const afterMove = calculateMartingale({ ...spotInput, currentPrice: 89 });
 
-    expect(atEntry.layers.map((layer) => layer.triggerPrice)).toEqual([100, 90, 81]);
-    expect(afterMove.layers.map((layer) => layer.triggerPrice)).toEqual([100, 90, 81]);
+    expect(atEntry.layers.map((layer) => layer.triggerPrice)).toEqual([100, 90, 80]);
+    expect(afterMove.layers.map((layer) => layer.triggerPrice)).toEqual([100, 90, 80]);
     expect(afterMove.entryPrice).toBe(100);
     expect(afterMove.currentPrice).toBe(89);
   });
@@ -71,9 +74,75 @@ describe('calculateMartingale', () => {
 
     expect(result.layers[0].triggerPrice).toBe(100);
     expect(result.layers[1].triggerPrice).toBeCloseTo(110);
-    expect(result.layers[2].triggerPrice).toBeCloseTo(121);
+    expect(result.layers[2].triggerPrice).toBeCloseTo(120);
     expect(result.currentExecutedLayers).toBe(2);
     expect(result.currentFloatingProfitLoss).toBeLessThan(0);
+  });
+
+  it.each([
+    [MARTINGALE_SIDE_LONG, [100, 90, 70]],
+    [MARTINGALE_SIDE_SHORT, [100, 110, 130]],
+  ])('accumulates expanded %s layer gaps from the entry price', (side, expectedPrices) => {
+    const result = calculateMartingale({
+      ...spotInput,
+      side,
+      priceGapMultiplier: 2,
+    });
+
+    result.layers.forEach((layer, index) => {
+      expect(layer.triggerPrice).toBeCloseTo(expectedPrices[index]);
+    });
+  });
+
+  it('matches Bitget cumulative price-gap prices', () => {
+    const result = calculateMartingale({
+      ...spotInput,
+      entryPrice: 1220.73,
+      currentPrice: 1220.73,
+      maxLayers: 9,
+      triggerPercent: 1.1,
+      priceGapMultiplier: 1.1,
+    });
+
+    const expectedPrices = [
+      1220.73, 1207.30197, 1192.531137, 1176.2832207, 1158.41051277, 1138.750534047, 1117.1245574517, 1093.33598319687,
+      1067.1685515165568,
+    ];
+    expectedPrices.forEach((price, index) => expect(result.layers[index].triggerPrice).toBeCloseTo(price));
+  });
+
+  it.each([
+    [MARTINGALE_SIDE_LONG, 73, 2],
+    [MARTINGALE_SIDE_LONG, 70, 3],
+    [MARTINGALE_SIDE_SHORT, 129, 2],
+    [MARTINGALE_SIDE_SHORT, 130, 3],
+  ])('counts executed %s layers against expanded gaps at price %s', (side, currentPrice, expectedLayers) => {
+    const result = calculateMartingale({
+      ...spotInput,
+      side,
+      currentPrice,
+      priceGapMultiplier: 2,
+    });
+
+    expect(result.currentExecutedLayers).toBe(expectedLayers);
+  });
+
+  it.each([0, -1, 0.99, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects an invalid price-gap multiplier: %s',
+    (priceGapMultiplier) => {
+      expect(() => calculateMartingale({ ...spotInput, priceGapMultiplier })).toThrow('加仓价差倍数');
+    },
+  );
+
+  it('rejects a long layer when the cumulative gap reaches 100%', () => {
+    expect(() =>
+      calculateMartingale({
+        ...spotInput,
+        maxLayers: 3,
+        triggerPercent: 50,
+        priceGapMultiplier: 2,
+      }),
+    ).toThrow('马丁参数组合超出可计算范围');
   });
 
   it.each([
@@ -287,10 +356,24 @@ describe('calculateMartingale', () => {
     expect(result.layers.every((layer) => !('executable' in layer) && !('availableCapital' in layer))).toBe(true);
   });
 
-  it('calculates the 200-layer defaults and accepts larger positive integers', () => {
-    expect(calculateMartingale(defaultContractMartingaleInput).layers).toHaveLength(200);
-    expect(calculateMartingale(defaultSpotMartingaleInput).layers).toHaveLength(200);
-    expect(calculateMartingale({ ...defaultSpotMartingaleInput, maxLayers: 201 }).layers).toHaveLength(201);
+  it('calculates the 25-layer defaults and accepts larger calculable positive integers', () => {
+    const defaultContractResult = calculateMartingale(defaultContractMartingaleInput);
+    const defaultSpotResult = calculateMartingale(defaultSpotMartingaleInput);
+
+    expect(defaultContractResult.layers).toHaveLength(25);
+    expect(defaultSpotResult.layers).toHaveLength(25);
+    expect(defaultContractResult.layers.at(-1).triggerPrice).toBeGreaterThan(0);
+    expect(() => calculateMartingale({ ...defaultContractMartingaleInput, maxLayers: 26 })).toThrow(
+      '马丁参数组合超出可计算范围',
+    );
+    expect(
+      calculateMartingale({
+        ...defaultSpotMartingaleInput,
+        maxLayers: 201,
+        triggerPercent: 0.1,
+        priceGapMultiplier: 1,
+      }).layers,
+    ).toHaveLength(201);
   });
 
   it.each([0, -1, 1.5])('rejects a non-positive-integer max layer value: %s', (maxLayers) => {

@@ -2,7 +2,7 @@ import { computed, effectScope, reactive, ref, watch } from 'vue';
 import { calculateMartingale, normalizeMartingaleInput } from './martingale';
 
 // 马丁策略 store 工厂：抽出合约/现货马丁共同的策略管理和本地持久化流程。
-const STORAGE_VERSION = 3;
+const STORAGE_VERSION = 4;
 
 // 通过固定 mode 生成对应市场的马丁策略 composable，避免页面误改交易模式。
 export function createMartingaleStrategyStore({ defaultInput, mode, newName, presets, storageKey }) {
@@ -13,7 +13,7 @@ export function createMartingaleStrategyStore({ defaultInput, mode, newName, pre
     if (store) return store;
 
     // mode 被写入 form 和持久化策略，确保现货/合约计算口径稳定。
-    const strategies = ref(loadStrategies(storageKey, mode));
+    const strategies = ref(loadStrategies(storageKey, defaultInput, mode));
     const selectedId = ref(strategies.value[0]?.id ?? '');
     const form = reactive({ ...defaultInput, mode });
     const scope = effectScope(true);
@@ -191,39 +191,62 @@ function createStrategy(input) {
   };
 }
 
-// 仅恢复 v3 数据；旧版本和非法数据直接清空，不执行迁移。
-function loadStrategies(storageKey, mode) {
+// 读取时不依赖历史版本号；只要存在策略数组，就按当前默认值补齐并规范化为 v4。
+function loadStrategies(storageKey, defaultInput, mode) {
   try {
     const serialized = localStorage.getItem(storageKey);
     if (!serialized) return [];
     const saved = JSON.parse(serialized);
-    if (saved?.version !== STORAGE_VERSION || !Array.isArray(saved.strategies)) {
+    const savedStrategies = Array.isArray(saved) ? saved : saved?.strategies;
+    if (!Array.isArray(savedStrategies)) {
       localStorage.removeItem(storageKey);
       return [];
     }
     const ids = new Set();
-    return saved.strategies.map((strategy) => {
-      if (
-        typeof strategy?.id !== 'string' ||
-        !strategy.id ||
-        ids.has(strategy.id) ||
-        !Number.isFinite(strategy.updatedAt)
-      ) {
-        throw new Error('马丁策略存储结构无效');
+    const migratedAt = Date.now();
+    const strategies = [];
+
+    for (const strategy of savedStrategies) {
+      try {
+        if (!strategy || typeof strategy !== 'object' || Array.isArray(strategy)) continue;
+        if (hasInvalidExplicitNumericInput(strategy, defaultInput)) continue;
+
+        const input = normalizeMartingaleInput({ ...defaultInput, ...strategy, mode });
+        calculateMartingale(input);
+
+        let id = typeof strategy.id === 'string' && strategy.id.trim() ? strategy.id : crypto.randomUUID();
+        while (ids.has(id)) id = crypto.randomUUID();
+        ids.add(id);
+        strategies.push({
+          id,
+          updatedAt: Number.isFinite(strategy.updatedAt) ? strategy.updatedAt : migratedAt,
+          ...input,
+        });
+      } catch {
+        // 单条无法修复的策略不影响同组其他数据恢复。
       }
-      const input = normalizeMartingaleInput({ ...strategy, mode });
-      calculateMartingale(input);
-      ids.add(strategy.id);
-      return {
-        id: strategy.id,
-        updatedAt: strategy.updatedAt,
-        ...input,
-      };
-    });
+    }
+
+    if (strategies.length === 0) {
+      localStorage.removeItem(storageKey);
+      return [];
+    }
+    persistStrategies(storageKey, strategies);
+    return strategies;
   } catch {
     localStorage.removeItem(storageKey);
   }
   return [];
+}
+
+function hasInvalidExplicitNumericInput(strategy, defaultInput) {
+  return Object.entries(defaultInput).some(([key, defaultValue]) => {
+    if (typeof defaultValue !== 'number' || !Object.prototype.hasOwnProperty.call(strategy, key)) return false;
+    const value = strategy[key];
+    if (typeof value !== 'number' && typeof value !== 'string') return true;
+    if (typeof value === 'string' && !value.trim()) return true;
+    return !Number.isFinite(Number(value));
+  });
 }
 
 // 本地存储失败时不抛出，让页面继续以内存态运行。

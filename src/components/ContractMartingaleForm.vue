@@ -81,7 +81,8 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
         format-trigger="onChange"
         input-align="right"
       />
-      <van-field v-model.number="form.multiplier" label="加仓倍数" type="number" input-align="right" />
+      <van-field v-model.number="form.multiplier" label="加仓金额倍数" type="number" input-align="right" />
+      <van-field v-model.number="form.priceGapMultiplier" label="加仓价差倍数" type="number" input-align="right" />
       <van-field v-model.number="form.maxLayers" label="最大层数" type="number" input-align="right" />
       <van-field v-model.number="form.additionalMargin" label="追加保证金" type="number" input-align="right" />
       <van-field v-model.number="form.feeRate" label="单边手续费率" type="number" input-align="right">
@@ -100,7 +101,13 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
         <template #icon><Save :size="17" /></template>
         保存策略
       </van-button>
-      <van-button round plain type="primary" @click="$emit('duplicate-strategy')">
+      <van-button
+        round
+        plain
+        type="primary"
+        :disabled="Boolean(calculation.error)"
+        @click="$emit('duplicate-strategy')"
+      >
         <template #icon><Copy :size="17" /></template>
         复制
       </van-button>
