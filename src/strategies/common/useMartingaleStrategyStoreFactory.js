@@ -2,9 +2,16 @@ import { computed, effectScope, reactive, ref, watch } from 'vue';
 import { calculateMartingale, normalizeMartingaleInput } from './martingale';
 
 // 马丁策略 store 工厂：抽出合约/现货马丁共同的策略管理和本地持久化流程。
-const STORAGE_VERSION = 4;
+// version 只描述当前写出格式；加载时不会用它拒绝旧数据，而是按当前默认参数补齐。
+const STORAGE_VERSION = 5;
 
-// 通过固定 mode 生成对应市场的马丁策略 composable，避免页面误改交易模式。
+/**
+ * 创建一个固定市场类型的马丁策略 Store。
+ *
+ * defaultInput 提供新建策略默认值和旧数据缺失字段的回填值；mode 由调用方固定，
+ * storageKey 隔离合约与现货的数据。工厂返回单例 composable，保证列表页、编辑页和详情页
+ * 使用同一份响应式状态。
+ */
 export function createMartingaleStrategyStore({ defaultInput, mode, newName, presets, storageKey }) {
   // 每个工厂实例维护自己的单例 store，合约和现货互不影响。
   let store;
@@ -13,9 +20,10 @@ export function createMartingaleStrategyStore({ defaultInput, mode, newName, pre
     if (store) return store;
 
     // mode 被写入 form 和持久化策略，确保现货/合约计算口径稳定。
+    // form 使用深拷贝，避免 customLayers 数组与默认值或已保存策略共享引用。
     const strategies = ref(loadStrategies(storageKey, defaultInput, mode));
     const selectedId = ref(strategies.value[0]?.id ?? '');
-    const form = reactive({ ...defaultInput, mode });
+    const form = reactive({ ...cloneMartingaleInput(defaultInput), mode });
     const scope = effectScope(true);
 
     scope.run(() => {
@@ -37,17 +45,19 @@ export function createMartingaleStrategyStore({ defaultInput, mode, newName, pre
       watch(
         selectedStrategy,
         (strategy) => {
-          if (strategy) Object.assign(form, { ...strategy, mode });
+          if (strategy) Object.assign(form, { ...cloneMartingaleInput(strategy), mode });
         },
         { immediate: true },
       );
     });
 
     // 计算始终使用当前 market 的 mode，页面可以直接消费 result 和 activeInput。
+    // calculateStrategy 将异常转成数据状态，输入过程中即使存在临时非法值也不会打断 Vue 渲染。
     const calculation = computed(() => calculateStrategy({ ...form, mode }));
     const result = computed(() => calculation.value.result);
     const activeInput = computed(() => calculation.value.input);
     const strategySummaries = computed(() =>
+      // 列表中的每条策略独立计算；单条错误只影响自己的摘要卡片。
       strategies.value.map((strategy) => ({
         strategy,
         calculation: calculateStrategy(strategy),
@@ -68,17 +78,19 @@ export function createMartingaleStrategyStore({ defaultInput, mode, newName, pre
     }
 
     function resetForm() {
-      Object.assign(form, selectedStrategy.value || defaultInput, { mode });
+      // 有选中策略时恢复已保存值，否则恢复市场默认草稿。
+      Object.assign(form, cloneMartingaleInput(selectedStrategy.value || defaultInput), { mode });
     }
 
     function setPreset(preset) {
-      Object.assign(form, preset, { mode });
+      // 预设也需要深拷贝自由参数数组，否则修改表格会污染预设常量。
+      Object.assign(form, cloneMartingaleInput(preset), { mode });
     }
 
     function addStrategy() {
       // 新建马丁策略只形成草稿，用户保存后才加入列表。
       const draft = {
-        ...defaultInput,
+        ...cloneMartingaleInput(defaultInput),
         mode,
         name: uniqueStrategyName(strategies.value, newName),
       };
@@ -103,6 +115,7 @@ export function createMartingaleStrategyStore({ defaultInput, mode, newName, pre
     }
 
     function saveStrategy() {
+      // 计算失败时拒绝写入，保证持久化列表中的策略都能被当前计算器正常消费。
       if (calculation.value.error) return { ok: false, message: calculation.value.error };
       // 保存会覆盖已选策略，未选中时创建新策略。
       const index = strategies.value.findIndex((strategy) => strategy.id === selectedId.value);
@@ -164,7 +177,11 @@ export function createMartingaleStrategyStore({ defaultInput, mode, newName, pre
   };
 }
 
-// 单策略计算包装：失败时把错误放到 calculation.error，让页面统一展示。
+/**
+ * 安全执行单条策略计算。
+ * 成功时同时返回规范化输入和结果；失败时保留错误消息并将两者置空，
+ * 供表单提示、保存按钮禁用和列表异常状态共同使用。
+ */
 export function calculateStrategy(strategy) {
   try {
     const input = normalizeMartingaleInput(strategy);
@@ -191,7 +208,13 @@ function createStrategy(input) {
   };
 }
 
-// 读取时不依赖历史版本号；只要存在策略数组，就按当前默认值补齐并规范化为 v4。
+/**
+ * 从 localStorage 恢复策略。
+ *
+ * 兼容裸数组和任意 version 的 { strategies: [] } 包装；每条记录先用当前市场默认值补字段，
+ * 再规范化并执行一次完整计算。损坏记录逐条跳过，不能因为一条坏数据清空其他健康策略。
+ * 恢复成功后立即按 v5 结构回写，从而让后续加载获得稳定、完整的新结构。
+ */
 function loadStrategies(storageKey, defaultInput, mode) {
   try {
     const serialized = localStorage.getItem(storageKey);
@@ -209,11 +232,15 @@ function loadStrategies(storageKey, defaultInput, mode) {
     for (const strategy of savedStrategies) {
       try {
         if (!strategy || typeof strategy !== 'object' || Array.isArray(strategy)) continue;
-        if (hasInvalidExplicitNumericInput(strategy, defaultInput)) continue;
+        if (hasInvalidExplicitNumericInput(strategy, defaultInput) || hasInvalidExplicitCustomLayers(strategy))
+          continue;
 
+        // 展开顺序保证旧策略的显式合法值优先，缺失字段才使用当前默认值；mode 始终强制覆盖。
         const input = normalizeMartingaleInput({ ...defaultInput, ...strategy, mode });
+        // 加载阶段执行完整业务校验，而不是只检查 JSON 类型。
         calculateMartingale(input);
 
+        // 缺失或重复 id 会破坏 Vue key 和编辑/删除定位，因此重新生成直到唯一。
         let id = typeof strategy.id === 'string' && strategy.id.trim() ? strategy.id : crypto.randomUUID();
         while (ids.has(id)) id = crypto.randomUUID();
         ids.add(id);
@@ -239,6 +266,7 @@ function loadStrategies(storageKey, defaultInput, mode) {
   return [];
 }
 
+// 只有“缺失”字段可以使用默认值；显式传入 null、空串或非有限数字代表数据损坏，必须跳过。
 function hasInvalidExplicitNumericInput(strategy, defaultInput) {
   return Object.entries(defaultInput).some(([key, defaultValue]) => {
     if (typeof defaultValue !== 'number' || !Object.prototype.hasOwnProperty.call(strategy, key)) return false;
@@ -249,7 +277,30 @@ function hasInvalidExplicitNumericInput(strategy, defaultInput) {
   });
 }
 
+// 自由参数是嵌套结构，需要在 Number 转换前单独检查每层对象和两个数值字段。
+function hasInvalidExplicitCustomLayers(strategy) {
+  if (!Object.prototype.hasOwnProperty.call(strategy, 'customLayers')) return false;
+  if (!Array.isArray(strategy.customLayers)) return true;
+  return strategy.customLayers.some(
+    (layer) =>
+      !layer ||
+      typeof layer !== 'object' ||
+      Array.isArray(layer) ||
+      !Number.isFinite(Number(layer.gapPercent)) ||
+      !Number.isFinite(Number(layer.amountShares)),
+  );
+}
+
+// 对 customLayers 做最小必要的深拷贝，防止表单原地编辑影响默认值、预设或已保存对象。
+function cloneMartingaleInput(input) {
+  return {
+    ...input,
+    customLayers: Array.isArray(input?.customLayers) ? input.customLayers.map((layer) => ({ ...layer })) : [],
+  };
+}
+
 // 本地存储失败时不抛出，让页面继续以内存态运行。
+// updatedAt 是整个存储包的写入时间；单条策略仍保留自己的 updatedAt。
 function persistStrategies(storageKey, strategies) {
   try {
     localStorage.setItem(

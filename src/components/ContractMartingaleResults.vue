@@ -11,19 +11,23 @@ const props = defineProps({
 
 const activeLayerSections = ref([]);
 
+// 展示层只根据输入方向选择文案和图标，不重新推导任何交易结果。
 const sideLabel = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? TrendingUp : TrendingDown));
 const currentPriceWithChange = computed(() => {
+  // 核心指标中的涨跌幅固定以首单入场价为参照，与平台的加仓价差基准无关。
   const currentPrice = props.result?.currentPrice;
   const entryPrice = props.result?.entryPrice;
   if (!Number.isFinite(currentPrice) || !Number.isFinite(entryPrice) || entryPrice <= 0) return '-';
   return formatPriceWithReferenceChange(currentPrice, entryPrice, 4, 2);
 });
 const currentExecutedLayer = computed(() => {
+  // currentExecutedLayers 是从 1 开始的业务层号，数组下标需要减 1。
   const currentLayerIndex = (props.result?.currentExecutedLayers ?? 0) - 1;
   return currentLayerIndex >= 0 ? props.result?.layers?.[currentLayerIndex] : null;
 });
 const currentLayerTakeProfitMetrics = computed(() => {
+  // 核心指标展示最后一层已执行仓位对应的累计止盈毛/净利润，而不是计划满层数据。
   const layer = currentExecutedLayer.value;
   if (!layer) return { grossValue: '-', grossDanger: false, netValue: '-', netDanger: false };
   return {
@@ -34,6 +38,7 @@ const currentLayerTakeProfitMetrics = computed(() => {
   };
 });
 const health = computed(() => {
+  // 风险状态使用简化强平模型的距离，仅作为策略估算提示。
   if (!props.result) return { label: '参数异常', type: 'danger' };
   if (props.result.liquidationPrice > 0 && props.result.liquidationDistance <= 0)
     return { label: '已达强平区', type: 'danger' };
@@ -41,21 +46,34 @@ const health = computed(() => {
     return { label: '强平较近', type: 'warning' };
   return { label: '风险可控', type: 'success' };
 });
-const inputRows = computed(() => [
-  ['策略名称', props.activeInput?.name || '-'],
-  ['方向', sideLabel.value],
-  ['入场价', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
-  ['当前价', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
-  ['首单保证金', formatNumber(props.activeInput?.firstOrderAmount ?? 0, 2)],
-  ['加仓金额倍数', formatNumber(props.activeInput?.multiplier ?? 0, 4)],
-  ['加仓价差倍数', formatNumber(props.activeInput?.priceGapMultiplier ?? 0, 4)],
-  ['最大层数', String(props.activeInput?.maxLayers ?? '-')],
-  ['触发幅度', formatPercent(props.activeInput?.triggerPercent ?? 0, 4)],
-  ['止盈比例', formatPercent(props.activeInput?.takeProfitPercent ?? 0, 4)],
-  ['单边手续费率', formatPercent(props.activeInput?.feeRate ?? 0, 4)],
-  ['杠杆倍数', `${formatNumber(props.activeInput?.leverage ?? 0, 2)}x`],
-  ['追加保证金', formatNumber(props.activeInput?.additionalMargin ?? 0, 2)],
-]);
+const inputRows = computed(() => {
+  // 自由模式下隐藏不会参与计算的四个普通生成参数，避免用户误以为它们仍然生效。
+  const freeParameters = props.activeInput?.executionPlatform === 'gate' && props.activeInput?.useFreeParameters;
+  const rows = [
+    ['策略名称', props.activeInput?.name || '-'],
+    ['方向', sideLabel.value],
+    ['执行平台', props.activeInput?.executionPlatform === 'bitget' ? 'Bitget' : 'Gate'],
+    ['参数模式', freeParameters ? '自由参数' : '普通参数'],
+    ['入场价', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
+    ['当前价', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
+    ['首单保证金', formatNumber(props.activeInput?.firstOrderAmount ?? 0, 4)],
+  ];
+  if (freeParameters) rows.push(['自由参数层数', String(props.activeInput?.customLayers?.length ?? 0)]);
+  else
+    rows.push(
+      ['加仓金额倍数', formatNumber(props.activeInput?.multiplier ?? 0, 4)],
+      ['加仓价差倍数', formatNumber(props.activeInput?.priceGapMultiplier ?? 0, 4)],
+      ['最大层数', String(props.activeInput?.maxLayers ?? '-')],
+      ['触发幅度', formatPercent(props.activeInput?.triggerPercent ?? 0, 4)],
+    );
+  rows.push(
+    ['止盈比例', formatPercent(props.activeInput?.takeProfitPercent ?? 0, 4)],
+    ['单边手续费率', formatPercent(props.activeInput?.feeRate ?? 0, 4)],
+    ['杠杆倍数', `${formatNumber(props.activeInput?.leverage ?? 0, 2)}x`],
+    ['追加保证金', formatNumber(props.activeInput?.additionalMargin ?? 0, 2)],
+  );
+  return rows;
+});
 const summaryMetrics = computed(() => [
   ['入场价', formatNumber(props.result?.entryPrice ?? 0, 4), false],
   ['当前价', currentPriceWithChange.value, false],

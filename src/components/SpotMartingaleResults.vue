@@ -11,13 +11,16 @@ const props = defineProps({
 
 const activeLayerSections = ref([]);
 
+// 方向相关文案与图标由输入决定，计算结果仍完全来自公共马丁计算器。
 const sideLabel = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === MARTINGALE_SIDE_LONG ? TrendingUp : TrendingDown));
 const currentExecutedLayer = computed(() => {
+  // 将从 1 开始的当前执行层号映射为数组下标，取最后一层实际执行数据。
   const currentLayerIndex = (props.result?.currentExecutedLayers ?? 0) - 1;
   return currentLayerIndex >= 0 ? props.result?.layers?.[currentLayerIndex] : null;
 });
 const currentLayerTakeProfitMetrics = computed(() => {
+  // 没有有效层时显示“-”，避免把缺失结果伪装成真实的 0 利润。
   const layer = currentExecutedLayer.value;
   if (!layer) return { grossValue: '-', grossDanger: false, netValue: '-', netDanger: false };
   return {
@@ -30,19 +33,32 @@ const currentLayerTakeProfitMetrics = computed(() => {
 const health = computed(() =>
   props.result ? { label: '运行中', type: 'success' } : { label: '参数异常', type: 'danger' },
 );
-const inputRows = computed(() => [
-  ['策略名称', props.activeInput?.name || '-'],
-  ['方向', sideLabel.value],
-  ['入场价', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
-  ['当前价', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
-  ['首单金额', formatNumber(props.activeInput?.firstOrderAmount ?? 0, 2)],
-  ['加仓金额倍数', formatNumber(props.activeInput?.multiplier ?? 0, 4)],
-  ['加仓价差倍数', formatNumber(props.activeInput?.priceGapMultiplier ?? 0, 4)],
-  ['最大层数', String(props.activeInput?.maxLayers ?? '-')],
-  ['触发幅度', formatPercent(props.activeInput?.triggerPercent ?? 0, 4)],
-  ['止盈比例', formatPercent(props.activeInput?.takeProfitPercent ?? 0, 4)],
-  ['单边手续费率', formatPercent(props.activeInput?.feeRate ?? 0, 4)],
-]);
+const inputRows = computed(() => {
+  // 参数信息根据普通/自由模式动态组织；自由模式只展示真实生效的层数。
+  const freeParameters = props.activeInput?.executionPlatform === 'gate' && props.activeInput?.useFreeParameters;
+  const rows = [
+    ['策略名称', props.activeInput?.name || '-'],
+    ['方向', sideLabel.value],
+    ['执行平台', props.activeInput?.executionPlatform === 'bitget' ? 'Bitget' : 'Gate'],
+    ['参数模式', freeParameters ? '自由参数' : '普通参数'],
+    ['入场价', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
+    ['当前价', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
+    ['首单金额', formatNumber(props.activeInput?.firstOrderAmount ?? 0, 4)],
+  ];
+  if (freeParameters) rows.push(['自由参数层数', String(props.activeInput?.customLayers?.length ?? 0)]);
+  else
+    rows.push(
+      ['加仓金额倍数', formatNumber(props.activeInput?.multiplier ?? 0, 4)],
+      ['加仓价差倍数', formatNumber(props.activeInput?.priceGapMultiplier ?? 0, 4)],
+      ['最大层数', String(props.activeInput?.maxLayers ?? '-')],
+      ['触发幅度', formatPercent(props.activeInput?.triggerPercent ?? 0, 4)],
+    );
+  rows.push(
+    ['止盈比例', formatPercent(props.activeInput?.takeProfitPercent ?? 0, 4)],
+    ['单边手续费率', formatPercent(props.activeInput?.feeRate ?? 0, 4)],
+  );
+  return rows;
+});
 const summaryMetrics = computed(() => [
   ['入场价', formatNumber(props.result?.entryPrice ?? 0, 4), false],
   ['当前价', formatNumber(props.result?.currentPrice ?? 0, 4), false],

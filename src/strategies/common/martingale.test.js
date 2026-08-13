@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateMartingale,
+  createCustomLayersFromStandardInput,
   MARTINGALE_MODE_FUTURES,
   MARTINGALE_MODE_SPOT,
+  MARTINGALE_PLATFORM_BITGET,
+  MARTINGALE_PLATFORM_GATE,
   MARTINGALE_SIDE_LONG,
   MARTINGALE_SIDE_SHORT,
   normalizeMartingaleInput,
@@ -17,6 +20,9 @@ describe('calculateMartingale', () => {
     side: MARTINGALE_SIDE_LONG,
     entryPrice: 100,
     currentPrice: 100,
+    executionPlatform: MARTINGALE_PLATFORM_BITGET,
+    useFreeParameters: false,
+    customLayers: [],
     firstOrderAmount: 100,
     multiplier: 2,
     priceGapMultiplier: 1,
@@ -32,18 +38,24 @@ describe('calculateMartingale', () => {
     expect(defaultContractMartingaleInput).toMatchObject({
       entryPrice: 2300,
       currentPrice: 2300,
-      firstOrderAmount: 0.2,
+      executionPlatform: MARTINGALE_PLATFORM_GATE,
+      useFreeParameters: false,
+      customLayers: [],
+      firstOrderAmount: 2,
       multiplier: 1.1,
       priceGapMultiplier: 1.1,
       maxLayers: 25,
       triggerPercent: 1.1,
       takeProfitPercent: 3,
       feeRate: 0.02,
-      leverage: 100,
+      leverage: 10,
     });
     expect(defaultSpotMartingaleInput).toMatchObject({
       entryPrice: 2300,
       currentPrice: 2300,
+      executionPlatform: MARTINGALE_PLATFORM_GATE,
+      useFreeParameters: false,
+      customLayers: [],
       firstOrderAmount: 0.2,
       multiplier: 1.1,
       priceGapMultiplier: 1.1,
@@ -109,6 +121,118 @@ describe('calculateMartingale', () => {
       1067.1685515165568,
     ];
     expectedPrices.forEach((price, index) => expect(result.layers[index].triggerPrice).toBeCloseTo(price));
+  });
+
+  it.each([
+    [MARTINGALE_SIDE_LONG, [100, 90, 72]],
+    [MARTINGALE_SIDE_SHORT, [100, 110, 132]],
+  ])('uses adjacent-layer compounding for Gate %s strategies', (side, expectedPrices) => {
+    const result = calculateMartingale({
+      ...spotInput,
+      executionPlatform: MARTINGALE_PLATFORM_GATE,
+      side,
+      priceGapMultiplier: 2,
+    });
+
+    result.layers.forEach((layer, index) => expect(layer.triggerPrice).toBeCloseTo(expectedPrices[index]));
+  });
+
+  it.each([MARTINGALE_MODE_SPOT, MARTINGALE_MODE_FUTURES])(
+    'uses Gate free parameters for %s order gaps and shares',
+    (mode) => {
+      const result = calculateMartingale({
+        ...spotInput,
+        mode,
+        executionPlatform: MARTINGALE_PLATFORM_GATE,
+        useFreeParameters: true,
+        customLayers: [
+          { gapPercent: 0, amountShares: 1 },
+          { gapPercent: 10, amountShares: 1.5 },
+          { gapPercent: 20, amountShares: 2.25 },
+        ],
+        leverage: mode === MARTINGALE_MODE_FUTURES ? 5 : 1,
+        multiplier: Number.NaN,
+        priceGapMultiplier: Number.NaN,
+        maxLayers: Number.NaN,
+        triggerPercent: Number.NaN,
+      });
+
+      expect(result.layers.map((layer) => layer.triggerPrice)).toEqual([100, 90, 72]);
+      expect(result.layers.map((layer) => layer.orderAmount)).toEqual([100, 150, 225]);
+      expect(result.layers).toHaveLength(3);
+      expect(result.useFreeParameters).toBe(true);
+    },
+  );
+
+  it('inherits an equivalent Gate free-parameter table from ordinary settings', () => {
+    const ordinary = {
+      ...spotInput,
+      executionPlatform: MARTINGALE_PLATFORM_GATE,
+      multiplier: 1.5,
+      priceGapMultiplier: 2,
+    };
+    const customLayers = createCustomLayersFromStandardInput(ordinary);
+    const ordinaryResult = calculateMartingale(ordinary);
+    const freeResult = calculateMartingale({ ...ordinary, useFreeParameters: true, customLayers });
+
+    expect(customLayers).toEqual([
+      { gapPercent: 0, amountShares: 1 },
+      { gapPercent: 10, amountShares: 1.5 },
+      { gapPercent: 20, amountShares: 2.25 },
+    ]);
+    expect(freeResult.layers).toEqual(ordinaryResult.layers);
+  });
+
+  it.each([
+    ['empty table', [], '层数'],
+    ['changed first gap', [{ gapPercent: 1, amountShares: 1 }], '首层'],
+    ['changed first shares', [{ gapPercent: 0, amountShares: 2 }], '首层'],
+    [
+      'invalid gap',
+      [
+        { gapPercent: 0, amountShares: 1 },
+        { gapPercent: 100, amountShares: 1 },
+      ],
+      '价差',
+    ],
+    [
+      'invalid shares',
+      [
+        { gapPercent: 0, amountShares: 1 },
+        { gapPercent: 1, amountShares: 0 },
+      ],
+      '份数',
+    ],
+  ])('rejects an invalid Gate free-parameter $name', (_name, customLayers, message) => {
+    expect(() =>
+      calculateMartingale({
+        ...spotInput,
+        executionPlatform: MARTINGALE_PLATFORM_GATE,
+        useFreeParameters: true,
+        customLayers,
+      }),
+    ).toThrow(message);
+  });
+
+  it('rejects free parameters on Bitget and more than 99 Gate custom layers', () => {
+    expect(() =>
+      calculateMartingale({
+        ...spotInput,
+        useFreeParameters: true,
+        customLayers: [{ gapPercent: 0, amountShares: 1 }],
+      }),
+    ).toThrow('Bitget');
+    expect(() =>
+      calculateMartingale({
+        ...spotInput,
+        executionPlatform: MARTINGALE_PLATFORM_GATE,
+        useFreeParameters: true,
+        customLayers: [
+          { gapPercent: 0, amountShares: 1 },
+          ...Array.from({ length: 99 }, () => ({ gapPercent: 1, amountShares: 1 })),
+        ],
+      }),
+    ).toThrow('1-99');
   });
 
   it.each([
@@ -363,9 +487,7 @@ describe('calculateMartingale', () => {
     expect(defaultContractResult.layers).toHaveLength(25);
     expect(defaultSpotResult.layers).toHaveLength(25);
     expect(defaultContractResult.layers.at(-1).triggerPrice).toBeGreaterThan(0);
-    expect(() => calculateMartingale({ ...defaultContractMartingaleInput, maxLayers: 26 })).toThrow(
-      '马丁参数组合超出可计算范围',
-    );
+    expect(calculateMartingale({ ...defaultContractMartingaleInput, maxLayers: 26 }).layers).toHaveLength(26);
     expect(
       calculateMartingale({
         ...defaultSpotMartingaleInput,

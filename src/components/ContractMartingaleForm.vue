@@ -1,11 +1,19 @@
 <script setup>
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
-import { MARTINGALE_SIDE_LONG, MARTINGALE_SIDE_SHORT } from '../strategies/common/martingale';
+import { showFailToast } from 'vant';
+import {
+  createCustomLayersFromStandardInput,
+  MARTINGALE_PLATFORM_BITGET,
+  MARTINGALE_PLATFORM_GATE,
+  MARTINGALE_SIDE_LONG,
+  MARTINGALE_SIDE_SHORT,
+} from '../strategies/common/martingale';
 import { limitDecimalPlaces } from '../utils/inputFormatters';
+import MartingaleFreeParametersEditor from './MartingaleFreeParametersEditor.vue';
 
 const formatFirstOrderAmount = (value) => limitDecimalPlaces(value, 4);
 
-defineProps({
+const props = defineProps({
   calculation: { type: Object, required: true },
   form: { type: Object, required: true },
   formIsSaved: { type: Boolean, required: true },
@@ -14,6 +22,27 @@ defineProps({
 });
 
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
+
+function updateExecutionPlatform(platform) {
+  // Bitget 没有自由参数入口；切换时仅关闭开关，不清空 customLayers，切回 Gate 后仍可继续编辑。
+  props.form.executionPlatform = platform;
+  if (platform === MARTINGALE_PLATFORM_BITGET) props.form.useFreeParameters = false;
+}
+
+function updateFreeParameters(enabled) {
+  // 关闭时保留已有表格；只有第一次开启且数组为空时，才从普通参数生成等价的逐层配置。
+  if (!enabled) {
+    props.form.useFreeParameters = false;
+    return;
+  }
+  try {
+    if (!props.form.customLayers?.length) props.form.customLayers = createCustomLayersFromStandardInput(props.form);
+    props.form.useFreeParameters = true;
+  } catch (error) {
+    // 例如普通最大层数超过 99 时，保持开关关闭并向用户说明如何修正。
+    showFailToast(error.message);
+  }
+}
 </script>
 
 <template>
@@ -66,7 +95,30 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
     </van-cell-group>
 
     <van-cell-group inset title="策略参数">
-      <van-field v-model.number="form.triggerPercent" label="触发幅度" type="number" input-align="right">
+      <van-field label="执行平台">
+        <template #input>
+          <van-radio-group
+            :model-value="form.executionPlatform"
+            direction="horizontal"
+            @update:model-value="updateExecutionPlatform"
+          >
+            <van-radio :name="MARTINGALE_PLATFORM_GATE">Gate</van-radio>
+            <van-radio :name="MARTINGALE_PLATFORM_BITGET">Bitget</van-radio>
+          </van-radio-group>
+        </template>
+      </van-field>
+      <van-field v-if="form.executionPlatform === MARTINGALE_PLATFORM_GATE" label="自由参数" input-align="right">
+        <template #input>
+          <van-switch :model-value="form.useFreeParameters" size="22" @update:model-value="updateFreeParameters" />
+        </template>
+      </van-field>
+      <van-field
+        v-if="!form.useFreeParameters"
+        v-model.number="form.triggerPercent"
+        label="触发幅度"
+        type="number"
+        input-align="right"
+      >
         <template #button>%</template>
       </van-field>
       <van-field v-model.number="form.takeProfitPercent" label="止盈比例" type="number" input-align="right">
@@ -81,13 +133,21 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
         format-trigger="onChange"
         input-align="right"
       />
-      <van-field v-model.number="form.multiplier" label="加仓金额倍数" type="number" input-align="right" />
-      <van-field v-model.number="form.priceGapMultiplier" label="加仓价差倍数" type="number" input-align="right" />
-      <van-field v-model.number="form.maxLayers" label="最大层数" type="number" input-align="right" />
+      <template v-if="!form.useFreeParameters">
+        <van-field v-model.number="form.multiplier" label="加仓金额倍数" type="number" input-align="right" />
+        <van-field v-model.number="form.priceGapMultiplier" label="加仓价差倍数" type="number" input-align="right" />
+        <van-field v-model.number="form.maxLayers" label="最大层数" type="number" input-align="right" />
+      </template>
       <van-field v-model.number="form.additionalMargin" label="追加保证金" type="number" input-align="right" />
       <van-field v-model.number="form.feeRate" label="单边手续费率" type="number" input-align="right">
         <template #button>%</template>
       </van-field>
+      <MartingaleFreeParametersEditor
+        v-if="form.executionPlatform === MARTINGALE_PLATFORM_GATE && form.useFreeParameters"
+        :layers="form.customLayers"
+        :side="form.side"
+        @update:layers="form.customLayers = $event"
+      />
     </van-cell-group>
 
     <div class="save-actions">

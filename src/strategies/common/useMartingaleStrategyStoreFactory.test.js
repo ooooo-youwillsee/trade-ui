@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MARTINGALE_MODE_FUTURES, MARTINGALE_MODE_SPOT } from './martingale';
+import { MARTINGALE_MODE_FUTURES, MARTINGALE_MODE_SPOT, MARTINGALE_PLATFORM_GATE } from './martingale';
 import { createMartingaleStrategyStore } from './useMartingaleStrategyStoreFactory';
 import { defaultContractMartingaleInput } from '../contract/martingaleDefaults';
 import { defaultSpotMartingaleInput } from '../spot/martingaleDefaults';
@@ -49,7 +49,7 @@ describe('createMartingaleStrategyStore', () => {
     });
     expect(strategy.id).toEqual(expect.any(String));
     expect(strategy.updatedAt).toEqual(expect.any(Number));
-    expect(persisted.version).toBe(4);
+    expect(persisted.version).toBe(5);
     expect(persisted.strategies).toEqual(store.strategies.value);
   });
 
@@ -77,13 +77,16 @@ describe('createMartingaleStrategyStore', () => {
       firstOrderAmount: defaultInput.firstOrderAmount,
       multiplier: defaultInput.multiplier,
       priceGapMultiplier: defaultInput.priceGapMultiplier,
+      executionPlatform: MARTINGALE_PLATFORM_GATE,
+      useFreeParameters: false,
+      customLayers: [],
       feeRate: defaultInput.feeRate,
       leverage: defaultInput.leverage,
     });
     expect(strategy).not.toHaveProperty('totalCapital');
   });
 
-  it('repairs metadata, skips invalid records, and keeps rewritten v4 data stable', () => {
+  it('repairs metadata, skips invalid records, and keeps rewritten v5 data stable', () => {
     const storageKey = 'martingale-repair-metadata';
     localStorage.setItem(
       storageKey,
@@ -113,7 +116,7 @@ describe('createMartingaleStrategyStore', () => {
     expect(firstIds[0]).toBe('duplicate');
     expect(firstStore.strategies.value[0].updatedAt).toBe(1);
     expect(firstStore.strategies.value.slice(1).every((strategy) => Number.isFinite(strategy.updatedAt))).toBe(true);
-    expect(persisted).toMatchObject({ version: 4, strategies: firstStore.strategies.value });
+    expect(persisted).toMatchObject({ version: 5, strategies: firstStore.strategies.value });
     expect(secondStore.strategies.value.map((strategy) => strategy.id)).toEqual(firstIds);
   });
 
@@ -145,12 +148,12 @@ describe('createMartingaleStrategyStore', () => {
   it.each([
     ['spot', MARTINGALE_MODE_SPOT, defaultSpotMartingaleInput],
     ['futures', MARTINGALE_MODE_FUTURES, defaultContractMartingaleInput],
-  ])('restores valid v4 %s strategies with numeric inputs', (_name, mode, defaultInput) => {
-    const storageKey = `martingale-v4-${mode}`;
+  ])('restores valid v5 %s strategies with numeric inputs', (_name, mode, defaultInput) => {
+    const storageKey = `martingale-v5-${mode}`;
     localStorage.setItem(
       storageKey,
       JSON.stringify({
-        version: 4,
+        version: 5,
         strategies: [
           {
             ...defaultInput,
@@ -176,8 +179,8 @@ describe('createMartingaleStrategyStore', () => {
     expect(store.activeInput.value.mode).toBe(mode);
   });
 
-  it('saves and duplicates only the v4 input contract', () => {
-    const storageKey = 'martingale-save-v4';
+  it('saves and duplicates only the v5 input contract', () => {
+    const storageKey = 'martingale-save-v5';
     const store = createStore({ storageKey });
     store.addStrategy();
     Object.assign(store.form, {
@@ -186,6 +189,12 @@ describe('createMartingaleStrategyStore', () => {
       currentPrice: '89',
       priceGapMultiplier: '1.5',
       maxLayers: 3,
+      executionPlatform: MARTINGALE_PLATFORM_GATE,
+      useFreeParameters: true,
+      customLayers: [
+        { gapPercent: 0, amountShares: 1 },
+        { gapPercent: '2.5', amountShares: '1.5' },
+      ],
       totalCapital: 1000,
       maintenanceMarginRate: 0.005,
       includeInitialOrder: false,
@@ -200,14 +209,24 @@ describe('createMartingaleStrategyStore', () => {
     expect(saved.strategy.entryPrice).toBe(100);
     expect(saved.strategy.feeRate).toBe(0.02);
     expect(saved.strategy.priceGapMultiplier).toBe(1.5);
+    expect(saved.strategy.customLayers).toEqual([
+      { gapPercent: 0, amountShares: 1 },
+      { gapPercent: 2.5, amountShares: 1.5 },
+    ]);
     expect(duplicated.entryPrice).toBe(100);
     expect(duplicated.feeRate).toBe(0.02);
     expect(duplicated.priceGapMultiplier).toBe(1.5);
-    expect(persisted.version).toBe(4);
+    expect(persisted.version).toBe(5);
     expect(persisted.strategies).toHaveLength(2);
     for (const strategy of persisted.strategies) {
       expect(strategy.entryPrice).toBe(100);
       expect(strategy.priceGapMultiplier).toBe(1.5);
+      expect(strategy.executionPlatform).toBe(MARTINGALE_PLATFORM_GATE);
+      expect(strategy.useFreeParameters).toBe(true);
+      expect(strategy.customLayers).toEqual([
+        { gapPercent: 0, amountShares: 1 },
+        { gapPercent: 2.5, amountShares: 1.5 },
+      ]);
       expect(strategy).not.toHaveProperty('totalCapital');
       expect(strategy).not.toHaveProperty('maintenanceMarginRate');
       expect(strategy).not.toHaveProperty('includeInitialOrder');
