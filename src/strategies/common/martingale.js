@@ -312,24 +312,13 @@ function adjacentLayerTriggerPrice(side, previousTriggerPrice, triggerStep) {
 }
 
 /**
- * 将 Gate 普通模式转换为等价的自由参数表格。
+ * 创建自由参数的初始首单层。
  *
- * gapPercent 保存每一层相对上一层的价差，amountShares 保存本层相对首单的份数。
- * 因此首次打开自由参数后，计划触发价和订单金额应与切换前完全一致。
+ * 自由参数与普通比例模式相互独立，首次开启时不能读取触发幅度、金额倍数、
+ * 价差倍数或最大层数。用户需要从固定首单层开始，自行添加后续加仓计划。
  */
-export function createCustomLayersFromStandardInput(rawInput) {
-  const maxLayers = Number(rawInput.maxLayers);
-  if (!Number.isInteger(maxLayers) || maxLayers < 1 || maxLayers > MARTINGALE_MAX_CUSTOM_LAYERS)
-    throw new Error(`开启自由参数前，请将最大层数调整为 1-${MARTINGALE_MAX_CUSTOM_LAYERS}`);
-  const triggerPercent = Number(rawInput.triggerPercent);
-  const priceGapMultiplier = Number(rawInput.priceGapMultiplier);
-  const multiplier = Number(rawInput.multiplier);
-  const layers = Array.from({ length: maxLayers }, (_, index) => ({
-    gapPercent: index === 0 ? 0 : triggerPercent * Math.pow(priceGapMultiplier, index - 1),
-    amountShares: index === 0 ? 1 : Math.pow(multiplier, index),
-  }));
-  validateCustomLayers(layers, true);
-  return layers;
+export function createInitialCustomLayers() {
+  return [{ gapPercent: 0, amountShares: 1 }];
 }
 
 // 止盈比例以累计持仓均价为基准；杠杆不直接改变止盈价格。

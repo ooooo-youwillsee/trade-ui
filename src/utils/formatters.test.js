@@ -42,6 +42,11 @@ describe('formatPriceWithReferenceChange', () => {
     expect(formatPriceWithReferenceChange(1000, 1000, 4, 2)).toBe('1,000.00 (0%)');
   });
 
+  it('formats layer prices relative to the layer trigger price with two decimal places', () => {
+    expect(formatPriceWithReferenceChange(119.2771, 118.8, 4, 2)).toBe('119.2771 (+0.4%)');
+    expect(formatPriceWithReferenceChange(124.0482, 118.8, 4, 2)).toBe('124.0482 (+4.42%)');
+  });
+
   it('omits the change when reference price is invalid', () => {
     expect(formatPriceWithReferenceChange(1000, 0, 4, 2)).toBe('1,000.00');
     expect(formatPriceWithReferenceChange(1000, Number.NaN, 4, 2)).toBe('1,000.00');

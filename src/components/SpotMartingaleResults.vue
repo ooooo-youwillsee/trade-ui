@@ -213,11 +213,11 @@ const summaryMetrics = computed(() => [
                 </div>
                 <div class="layer-metric">
                   <span>持仓均价</span>
-                  <b>{{ formatNumber(layer.averageEntryPrice, 4) }}</b>
+                  <b>{{ formatPriceWithReferenceChange(layer.averageEntryPrice, layer.triggerPrice, 4, 2) }}</b>
                 </div>
                 <div class="layer-metric">
                   <span>止盈价</span>
-                  <b>{{ formatNumber(layer.takeProfitPrice, 4) }}</b>
+                  <b>{{ formatPriceWithReferenceChange(layer.takeProfitPrice, layer.triggerPrice, 4, 2) }}</b>
                 </div>
                 <div class="layer-metric layer-metric--profit">
                   <span>止盈毛利润</span>

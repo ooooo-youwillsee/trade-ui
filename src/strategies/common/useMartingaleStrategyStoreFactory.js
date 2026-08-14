@@ -83,8 +83,16 @@ export function createMartingaleStrategyStore({ defaultInput, mode, newName, pre
     }
 
     function setPreset(preset) {
-      // 预设也需要深拷贝自由参数数组，否则修改表格会污染预设常量。
-      Object.assign(form, cloneMartingaleInput(preset), { mode });
+      // 自由参数是独立配置：快捷预设只覆盖公共字段和普通比例参数，不能清空用户逐层编辑的计划。
+      const executionPlatform = form.executionPlatform;
+      const useFreeParameters = form.useFreeParameters;
+      const customLayers = cloneCustomLayers(form.customLayers);
+      Object.assign(form, cloneMartingaleInput(preset), {
+        mode,
+        executionPlatform,
+        useFreeParameters: executionPlatform === 'gate' && useFreeParameters,
+        customLayers,
+      });
     }
 
     function addStrategy() {
@@ -295,8 +303,12 @@ function hasInvalidExplicitCustomLayers(strategy) {
 function cloneMartingaleInput(input) {
   return {
     ...input,
-    customLayers: Array.isArray(input?.customLayers) ? input.customLayers.map((layer) => ({ ...layer })) : [],
+    customLayers: cloneCustomLayers(input?.customLayers),
   };
+}
+
+function cloneCustomLayers(customLayers) {
+  return Array.isArray(customLayers) ? customLayers.map((layer) => ({ ...layer })) : [];
 }
 
 // 本地存储失败时不抛出，让页面继续以内存态运行。

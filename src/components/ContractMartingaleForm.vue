@@ -1,8 +1,7 @@
 <script setup>
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
-import { showFailToast } from 'vant';
 import {
-  createCustomLayersFromStandardInput,
+  createInitialCustomLayers,
   MARTINGALE_PLATFORM_BITGET,
   MARTINGALE_PLATFORM_GATE,
   MARTINGALE_SIDE_LONG,
@@ -30,18 +29,13 @@ function updateExecutionPlatform(platform) {
 }
 
 function updateFreeParameters(enabled) {
-  // 关闭时保留已有表格；只有第一次开启且数组为空时，才从普通参数生成等价的逐层配置。
+  // 关闭时保留已有表格；第一次开启且数组为空时，只创建固定首单层，不读取普通模式参数。
   if (!enabled) {
     props.form.useFreeParameters = false;
     return;
   }
-  try {
-    if (!props.form.customLayers?.length) props.form.customLayers = createCustomLayersFromStandardInput(props.form);
-    props.form.useFreeParameters = true;
-  } catch (error) {
-    // 例如普通最大层数超过 99 时，保持开关关闭并向用户说明如何修正。
-    showFailToast(error.message);
-  }
+  if (!props.form.customLayers?.length) props.form.customLayers = createInitialCustomLayers();
+  props.form.useFreeParameters = true;
 }
 </script>
 

@@ -10,7 +10,7 @@ export const defaultContractMartingaleInput = {
   currentPrice: 2300,
   executionPlatform: MARTINGALE_PLATFORM_GATE,
   useFreeParameters: false,
-  // 普通模式无需预生成自由层；首次打开自由参数时再按当前普通参数生成等价数组。
+  // 普通模式无需预生成自由层；首次打开自由参数时仅创建固定首单层。
   customLayers: [],
   firstOrderAmount: 2,
   multiplier: 1.1,

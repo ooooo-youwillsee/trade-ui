@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   calculateMartingale,
-  createCustomLayersFromStandardInput,
+  createInitialCustomLayers,
   MARTINGALE_MODE_FUTURES,
   MARTINGALE_MODE_SPOT,
   MARTINGALE_PLATFORM_BITGET,
@@ -164,23 +164,9 @@ describe('calculateMartingale', () => {
     },
   );
 
-  it('inherits an equivalent Gate free-parameter table from ordinary settings', () => {
-    const ordinary = {
-      ...spotInput,
-      executionPlatform: MARTINGALE_PLATFORM_GATE,
-      multiplier: 1.5,
-      priceGapMultiplier: 2,
-    };
-    const customLayers = createCustomLayersFromStandardInput(ordinary);
-    const ordinaryResult = calculateMartingale(ordinary);
-    const freeResult = calculateMartingale({ ...ordinary, useFreeParameters: true, customLayers });
-
-    expect(customLayers).toEqual([
-      { gapPercent: 0, amountShares: 1 },
-      { gapPercent: 10, amountShares: 1.5 },
-      { gapPercent: 20, amountShares: 2.25 },
-    ]);
-    expect(freeResult.layers).toEqual(ordinaryResult.layers);
+  it('initializes free parameters with an independent base-order layer', () => {
+    expect(createInitialCustomLayers()).toEqual([{ gapPercent: 0, amountShares: 1 }]);
+    expect(createInitialCustomLayers()).not.toBe(createInitialCustomLayers());
   });
 
   it.each([

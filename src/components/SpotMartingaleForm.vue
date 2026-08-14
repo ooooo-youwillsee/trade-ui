@@ -1,8 +1,7 @@
 <script setup>
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
-import { showFailToast } from 'vant';
 import {
-  createCustomLayersFromStandardInput,
+  createInitialCustomLayers,
   MARTINGALE_PLATFORM_BITGET,
   MARTINGALE_PLATFORM_GATE,
   MARTINGALE_SIDE_LONG,
@@ -32,13 +31,8 @@ function updateFreeParameters(enabled) {
     props.form.useFreeParameters = false;
     return;
   }
-  try {
-    if (!props.form.customLayers?.length) props.form.customLayers = createCustomLayersFromStandardInput(props.form);
-    props.form.useFreeParameters = true;
-  } catch (error) {
-    // 转换失败时不写入半成品数组，继续保留普通模式。
-    showFailToast(error.message);
-  }
+  if (!props.form.customLayers?.length) props.form.customLayers = createInitialCustomLayers();
+  props.form.useFreeParameters = true;
 }
 </script>
 

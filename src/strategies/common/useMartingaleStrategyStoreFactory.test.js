@@ -179,6 +179,58 @@ describe('createMartingaleStrategyStore', () => {
     expect(store.activeInput.value.mode).toBe(mode);
   });
 
+  it.each([
+    ['spot', MARTINGALE_MODE_SPOT, defaultSpotMartingaleInput],
+    ['futures', MARTINGALE_MODE_FUTURES, defaultContractMartingaleInput],
+  ])('starts a new %s strategy with an empty independent free-parameter table', (_name, mode, defaultInput) => {
+    const store = createStore({ defaultInput, mode, storageKey: `martingale-new-${mode}` });
+    Object.assign(store.form, {
+      useFreeParameters: true,
+      customLayers: [
+        { gapPercent: 0, amountShares: 1 },
+        { gapPercent: 2, amountShares: 3 },
+      ],
+    });
+
+    const draft = store.addStrategy();
+
+    expect(draft.useFreeParameters).toBe(false);
+    expect(draft.customLayers).toEqual([]);
+    expect(store.form.useFreeParameters).toBe(false);
+    expect(store.form.customLayers).toEqual([]);
+    expect(store.form.customLayers).not.toBe(defaultInput.customLayers);
+  });
+
+  it('applies an ordinary preset without replacing the independent free-parameter state', () => {
+    const store = createStore({ storageKey: 'martingale-preset-keeps-free-parameters' });
+    const customLayers = [
+      { gapPercent: 0, amountShares: 1 },
+      { gapPercent: 2.5, amountShares: 1.5 },
+    ];
+    Object.assign(store.form, {
+      executionPlatform: MARTINGALE_PLATFORM_GATE,
+      useFreeParameters: true,
+      customLayers,
+      triggerPercent: 9,
+      multiplier: 3,
+    });
+
+    store.setPreset({
+      ...defaultSpotMartingaleInput,
+      triggerPercent: 1.5,
+      multiplier: 1.2,
+      customLayers: [],
+      useFreeParameters: false,
+    });
+
+    expect(store.form.triggerPercent).toBe(1.5);
+    expect(store.form.multiplier).toBe(1.2);
+    expect(store.form.executionPlatform).toBe(MARTINGALE_PLATFORM_GATE);
+    expect(store.form.useFreeParameters).toBe(true);
+    expect(store.form.customLayers).toEqual(customLayers);
+    expect(store.form.customLayers).not.toBe(customLayers);
+  });
+
   it('saves and duplicates only the v5 input contract', () => {
     const storageKey = 'martingale-save-v5';
     const store = createStore({ storageKey });
