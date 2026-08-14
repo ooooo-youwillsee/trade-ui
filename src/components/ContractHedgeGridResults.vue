@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { ArrowLeftRight, BarChart3, Boxes, ShieldAlert, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { formatNumber, formatPercent, formatPriceWithReferenceChange, formatProfitWithRate } from '../utils/formatters';
+import GridTipLabel from './GridTipLabel.vue';
 
 const props = defineProps({
   activeInput: {
@@ -18,33 +19,60 @@ const openSections = ref([]);
 
 // 顶部总览只展示跨两条腿汇总后的资金压力和可转出收益。
 const summaryMetrics = computed(() => [
-  ['需补保证金', formatNumber(props.result?.requiredMarginAmount ?? 0, 2)],
-  ['资金缺口', formatNumber(props.result?.marginShortfall ?? 0, 2)],
-  ['可转出盈利', formatNumber(props.result?.availableTransferAmount ?? 0, 2)],
-  ['场景总收益', formatNumber(props.result?.scenarioTotalProfitLoss ?? 0, 2)],
+  {
+    key: 'hedgeRequiredMargin',
+    label: '需补保证金',
+    value: formatNumber(props.result?.requiredMarginAmount ?? 0, 2),
+  },
+  {
+    key: 'hedgeMarginShortfall',
+    label: '资金缺口',
+    value: formatNumber(props.result?.marginShortfall ?? 0, 2),
+    danger: (props.result?.marginShortfall ?? 0) > 0,
+  },
+  {
+    key: 'hedgeTransferableProfit',
+    label: '可转出盈利',
+    value: formatNumber(props.result?.availableTransferAmount ?? 0, 2),
+  },
+  {
+    key: 'hedgeScenarioTotalProfit',
+    label: '场景总收益',
+    value: formatNumber(props.result?.scenarioTotalProfitLoss ?? 0, 2),
+  },
 ]);
 
 const scenarioRows = computed(() => [
-  [
-    '多头场景价',
-    formatPriceWithReferenceChange(
+  {
+    key: 'longScenarioPrice',
+    label: '多头场景价',
+    value: formatPriceWithReferenceChange(
       props.result?.longScenarioPrice ?? 0,
       props.activeInput?.longLeg?.currentPrice ?? 0,
       4,
       2,
     ),
-  ],
-  [
-    '空头场景价',
-    formatPriceWithReferenceChange(
+  },
+  {
+    key: 'shortScenarioPrice',
+    label: '空头场景价',
+    value: formatPriceWithReferenceChange(
       props.result?.shortScenarioPrice ?? 0,
       props.activeInput?.shortLeg?.currentPrice ?? 0,
       4,
       2,
     ),
-  ],
-  ['多头涨跌幅', formatPercent(props.activeInput?.longScenarioChangePercent ?? 0, 2)],
-  ['空头涨跌幅', formatPercent(props.activeInput?.shortScenarioChangePercent ?? 0, 2)],
+  },
+  {
+    key: 'longScenarioChange',
+    label: '多头涨跌幅',
+    value: formatPercent(props.activeInput?.longScenarioChangePercent ?? 0, 2),
+  },
+  {
+    key: 'shortScenarioChange',
+    label: '空头涨跌幅',
+    value: formatPercent(props.activeInput?.shortScenarioChangePercent ?? 0, 2),
+  },
 ]);
 
 // 腿部明细固定按多头、空头两组展示，方向由策略计算层保证。
@@ -72,18 +100,54 @@ const legRows = computed(() => [
 function legMetrics(leg) {
   // 当前值来自当前网格结果，场景值来自场景推演结果，便于对比仓位变化。
   return [
-    ['合约名称', leg.input?.name || '-'],
-    ['最小成交数量', formatNumber(leg.input?.minTradeQuantity ?? 0, 8)],
-    ['实际单格数量', formatNumber(leg.result?.tradablePerGridQuantity ?? 0, 8)],
-    ['未分配保证金', formatNumber(leg.result?.unallocatedMargin ?? 0, 4)],
-    ['当前持仓', formatNumber(leg.result?.currentNotional ?? 0, 4)],
-    ['场景持仓', formatNumber(leg.scenario?.currentNotional ?? 0, 4)],
-    ['当前持仓均价', formatNumber(leg.result?.averageEntryPrice ?? 0, 4)],
-    ['场景持仓均价', formatNumber(leg.scenario?.averageEntryPrice ?? 0, 4)],
-    ['当前强平价', formatNumber(leg.result?.liquidationPrice ?? 0, 4)],
-    ['场景强平价', formatNumber(leg.scenario?.liquidationPrice ?? 0, 4)],
-    ['场景总收益', formatNumber(leg.scenario?.totalProfitLoss ?? 0, 4)],
-    ['需补保证金', formatNumber(leg.requiredMargin, 4)],
+    { key: 'contractName', label: '合约名称', value: leg.input?.name || '-' },
+    {
+      key: 'minTradeQuantity',
+      label: '最小成交数量',
+      value: formatNumber(leg.input?.minTradeQuantity ?? 0, 8),
+    },
+    {
+      key: 'tradablePerGridQuantity',
+      label: '实际单格数量',
+      value: formatNumber(leg.result?.tradablePerGridQuantity ?? 0, 8),
+    },
+    {
+      key: 'unallocatedCapital',
+      label: '未分配保证金',
+      value: formatNumber(leg.result?.unallocatedMargin ?? 0, 4),
+    },
+    { key: 'legCurrentNotional', label: '当前持仓', value: formatNumber(leg.result?.currentNotional ?? 0, 4) },
+    {
+      key: 'legScenarioNotional',
+      label: '场景持仓',
+      value: formatNumber(leg.scenario?.currentNotional ?? 0, 4),
+    },
+    {
+      key: 'legCurrentAveragePrice',
+      label: '当前持仓均价',
+      value: formatNumber(leg.result?.averageEntryPrice ?? 0, 4),
+    },
+    {
+      key: 'legScenarioAveragePrice',
+      label: '场景持仓均价',
+      value: formatNumber(leg.scenario?.averageEntryPrice ?? 0, 4),
+    },
+    {
+      key: 'legCurrentLiquidationPrice',
+      label: '当前强平价',
+      value: formatNumber(leg.result?.liquidationPrice ?? 0, 4),
+    },
+    {
+      key: 'legScenarioLiquidationPrice',
+      label: '场景强平价',
+      value: formatNumber(leg.scenario?.liquidationPrice ?? 0, 4),
+    },
+    {
+      key: 'legScenarioProfit',
+      label: '场景总收益',
+      value: formatNumber(leg.scenario?.totalProfitLoss ?? 0, 4),
+    },
+    { key: 'legRequiredMargin', label: '需补保证金', value: formatNumber(leg.requiredMargin, 4) },
   ];
 }
 </script>
@@ -94,16 +158,20 @@ function legMetrics(leg) {
       <div class="detail-hero__top">
         <div class="side-badge">
           <ArrowLeftRight :size="18" />
-          对冲合约网格
+          <GridTipLabel label="对冲合约网格" tip-key="direction" side="neutral" />
         </div>
         <van-tag :type="(result?.marginShortfall ?? 0) > 0 ? 'warning' : 'success'" round>
-          {{ (result?.marginShortfall ?? 0) > 0 ? '需要外部补充' : '浮盈可覆盖' }}
+          <GridTipLabel
+            :label="(result?.marginShortfall ?? 0) > 0 ? '需要外部补充' : '浮盈可覆盖'"
+            tip-key="strategyStatus"
+            mode="hedge"
+          />
         </van-tag>
       </div>
       <h2>{{ result?.name || '对冲合约网格' }}</h2>
       <div class="health-line">
         <ShieldAlert :size="18" />
-        <span>资金缺口</span>
+        <GridTipLabel label="资金缺口" tip-key="hedgeMarginShortfall" />
         <strong>{{ formatNumber(result?.marginShortfall ?? 0, 2) }}</strong>
       </div>
     </section>
@@ -114,11 +182,9 @@ function legMetrics(leg) {
         <span>对冲概览</span>
       </div>
       <div class="metric-grid">
-        <article v-for="[label, value] in summaryMetrics" :key="label" class="metric-card">
-          <span>{{ label }}</span>
-          <strong :class="{ negative: label.includes('缺口') && (result?.marginShortfall ?? 0) > 0 }">{{
-            value
-          }}</strong>
+        <article v-for="item in summaryMetrics" :key="item.key" class="metric-card">
+          <GridTipLabel :label="item.label" :tip-key="item.key" mode="hedge" />
+          <strong :class="{ negative: item.danger }">{{ item.value }}</strong>
         </article>
       </div>
     </section>
@@ -129,9 +195,9 @@ function legMetrics(leg) {
         <span>场景价格</span>
       </div>
       <div class="input-grid">
-        <div v-for="[label, value] in scenarioRows" :key="label" class="input-item">
-          <span>{{ label }}</span>
-          <strong>{{ value }}</strong>
+        <div v-for="item in scenarioRows" :key="item.key" class="input-item">
+          <GridTipLabel :label="item.label" :tip-key="item.key" mode="hedge" />
+          <strong>{{ item.value }}</strong>
         </div>
       </div>
     </section>
@@ -142,11 +208,9 @@ function legMetrics(leg) {
         <span>{{ leg.title }}</span>
       </div>
       <div class="input-grid">
-        <div v-for="[label, value] in legMetrics(leg)" :key="label" class="input-item">
-          <span>{{ label }}</span>
-          <strong :class="{ negative: label.includes('浮盈亏') && Number(String(value).replace(/,/g, '')) < 0 }">
-            {{ value }}
-          </strong>
+        <div v-for="item in legMetrics(leg)" :key="item.key" class="input-item">
+          <GridTipLabel :label="item.label" :tip-key="item.key" mode="futures" :side="leg.key" />
+          <strong>{{ item.value }}</strong>
         </div>
       </div>
     </section>
@@ -169,24 +233,24 @@ function legMetrics(leg) {
               class="grid-order-row"
             >
               <div>
-                <span>挂单价格</span>
+                <GridTipLabel label="挂单价格" tip-key="gridOrderPrice" />
                 <strong>{{ formatNumber(order.price, 4) }}</strong>
               </div>
               <div>
-                <span>保证金</span>
+                <GridTipLabel label="保证金" tip-key="gridOrderCapital" mode="futures" />
                 <strong>{{ formatNumber(order.margin, 4) }}</strong>
               </div>
               <div>
-                <span>毛利润</span>
+                <GridTipLabel label="毛利润" tip-key="gridOrderGrossProfit" />
                 <strong>{{ formatProfitWithRate(order.grossProfitAmount ?? 0, order.grossProfitRate ?? 0) }}</strong>
               </div>
               <div>
-                <span>净利润</span>
+                <GridTipLabel label="净利润" tip-key="gridOrderNetProfit" />
                 <strong>{{ formatProfitWithRate(order.netProfitAmount ?? 0, order.netProfitRate ?? 0) }}</strong>
               </div>
               <div class="grid-order-tags">
                 <van-tag :type="order.filled ? 'warning' : 'primary'" round>
-                  {{ order.filled ? '已成交' : '未成交' }}
+                  <GridTipLabel :label="order.filled ? '已成交' : '未成交'" tip-key="gridOrderStatus" />
                 </van-tag>
               </div>
             </div>

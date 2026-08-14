@@ -1,6 +1,7 @@
 <script setup>
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
 import ContractHedgeGridLegFields from './ContractHedgeGridLegFields.vue';
+import GridTipLabel from './GridTipLabel.vue';
 
 defineProps({
   calculation: {
@@ -63,18 +64,22 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
     </van-cell-group>
 
     <van-cell-group inset title="基础信息">
-      <van-field v-model="form.name" label="策略名称" placeholder="输入策略名称" />
-      <van-field v-model.number="form.longScenarioChangePercent" label="多头涨跌幅" type="number" input-align="right">
+      <van-field v-model="form.name" placeholder="输入策略名称">
+        <template #label><GridTipLabel label="策略名称" tip-key="strategyName" /></template>
+      </van-field>
+      <van-field v-model.number="form.longScenarioChangePercent" type="number" input-align="right">
+        <template #label><GridTipLabel label="多头涨跌幅" tip-key="longScenarioChange" /></template>
         <template #button>%</template>
       </van-field>
-      <van-field v-model.number="form.shortScenarioChangePercent" label="空头涨跌幅" type="number" input-align="right">
+      <van-field v-model.number="form.shortScenarioChangePercent" type="number" input-align="right">
+        <template #label><GridTipLabel label="空头涨跌幅" tip-key="shortScenarioChange" /></template>
         <template #button>%</template>
       </van-field>
     </van-cell-group>
 
     <!-- 两条腿复用同一个字段组件，父表单只保留策略级信息和操作按钮。 -->
-    <ContractHedgeGridLegFields title="多头合约" :leg="form.longLeg" />
-    <ContractHedgeGridLegFields title="空头合约" :leg="form.shortLeg" />
+    <ContractHedgeGridLegFields title="多头合约" :leg="form.longLeg" side="long" />
+    <ContractHedgeGridLegFields title="空头合约" :leg="form.shortLeg" side="short" />
 
     <div class="save-actions">
       <van-button
@@ -159,6 +164,10 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
   flex-wrap: wrap;
   gap: 8px;
   padding: 12px 16px 14px;
+}
+
+:deep(.van-field__label) {
+  width: 8.5em;
 }
 
 .save-actions {

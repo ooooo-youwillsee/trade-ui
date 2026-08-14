@@ -4,6 +4,7 @@ import { computed, ref } from 'vue';
 import { BarChart3, Boxes, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { CONTRACT_SIDE_LONG, GRID_MODE_GEOMETRIC } from '../strategies/common/grid';
 import { formatNumber, formatPercent, formatPriceWithReferenceChange, formatProfitWithRate } from '../utils/formatters';
+import GridTipLabel from './GridTipLabel.vue';
 
 // activeInput 和 result 分离，便于结果缺失时仍可展示输入相关状态。
 const props = defineProps({
@@ -15,37 +16,66 @@ const activeGridSections = ref([]);
 const sideLabel = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? '做多' : '做空'));
 const sideIcon = computed(() => (props.activeInput?.side === CONTRACT_SIDE_LONG ? TrendingUp : TrendingDown));
 const inputRows = computed(() => [
-  ['策略名称', props.activeInput?.name || '-'],
-  ['方向', sideLabel.value],
-  ['网格模式', props.activeInput?.gridMode === GRID_MODE_GEOMETRIC ? '等比' : '等差'],
-  ['创建时建仓', props.activeInput?.openOnCreate ? '是' : '否'],
-  [
-    '下限价格',
-    formatPriceWithReferenceChange(props.activeInput?.lowerPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
-  ],
-  [
-    '上限价格',
-    formatPriceWithReferenceChange(props.activeInput?.upperPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
-  ],
-  ['入场价格', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
-  [
-    '当前价格',
-    formatPriceWithReferenceChange(props.activeInput?.currentPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
-  ],
-  ['网格数量', String(props.activeInput?.gridCount ?? '-')],
-  ['投入金额', formatNumber(props.activeInput?.investment ?? 0, 2)],
-  ['单边手续费率', formatPercent(props.activeInput?.feeRate ?? 0, 4)],
-  ['最小成交数量', formatNumber(props.activeInput?.minTradeQuantity ?? 0, 8)],
+  { key: 'strategyName', label: '策略名称', value: props.activeInput?.name || '-' },
+  { key: 'direction', label: '方向', value: sideLabel.value },
+  {
+    key: 'gridMode',
+    label: '网格模式',
+    value: props.activeInput?.gridMode === GRID_MODE_GEOMETRIC ? '等比' : '等差',
+  },
+  { key: 'openOnCreate', label: '创建时建仓', value: props.activeInput?.openOnCreate ? '是' : '否' },
+  {
+    key: 'lowerPrice',
+    label: '下限价格',
+    value: formatPriceWithReferenceChange(props.activeInput?.lowerPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
+  },
+  {
+    key: 'upperPrice',
+    label: '上限价格',
+    value: formatPriceWithReferenceChange(props.activeInput?.upperPrice ?? 0, props.activeInput?.entryPrice ?? 0, 4, 2),
+  },
+  { key: 'entryPrice', label: '入场价格', value: formatNumber(props.activeInput?.entryPrice ?? 0, 4) },
+  {
+    key: 'currentPrice',
+    label: '当前价格',
+    value: formatPriceWithReferenceChange(
+      props.activeInput?.currentPrice ?? 0,
+      props.activeInput?.entryPrice ?? 0,
+      4,
+      2,
+    ),
+  },
+  { key: 'gridCount', label: '网格数量', value: String(props.activeInput?.gridCount ?? '-') },
+  { key: 'investment', label: '投入金额', value: formatNumber(props.activeInput?.investment ?? 0, 2) },
+  { key: 'feeRate', label: '单边手续费率', value: formatPercent(props.activeInput?.feeRate ?? 0, 4) },
+  {
+    key: 'minTradeQuantity',
+    label: '最小成交数量',
+    value: formatNumber(props.activeInput?.minTradeQuantity ?? 0, 8),
+  },
 ]);
 const summaryMetrics = computed(() => [
-  ['持仓均价', formatNumber(props.result?.averageEntryPrice ?? 0, 4)],
-  ['当前权益', formatNumber(props.result?.currentEquity ?? 0, 4)],
-  ['浮动盈亏', formatNumber(props.result?.floatingProfitLoss ?? 0, 4)],
-  ['持仓数量', formatNumber(props.result?.positionQuantity ?? 0, 8)],
-  ['实际单格数量', formatNumber(props.result?.tradablePerGridQuantity ?? 0, 8)],
-  ['未分配金额', formatNumber(props.result?.unallocatedInvestment ?? 0, 4)],
-  ['单格收益率', formatPercent(props.result?.gridProfitRate ?? 0, 4)],
-  ['区间振幅', formatPercent(props.result?.totalYieldRate ?? 0, 4)],
+  { key: 'averageEntryPrice', label: '持仓均价', value: formatNumber(props.result?.averageEntryPrice ?? 0, 4) },
+  { key: 'currentEquity', label: '当前权益', value: formatNumber(props.result?.currentEquity ?? 0, 4) },
+  {
+    key: 'unrealizedProfitLoss',
+    label: '浮动盈亏',
+    value: formatNumber(props.result?.floatingProfitLoss ?? 0, 4),
+    danger: (props.result?.floatingProfitLoss ?? 0) < 0,
+  },
+  { key: 'positionQuantity', label: '持仓数量', value: formatNumber(props.result?.positionQuantity ?? 0, 8) },
+  {
+    key: 'tradablePerGridQuantity',
+    label: '实际单格数量',
+    value: formatNumber(props.result?.tradablePerGridQuantity ?? 0, 8),
+  },
+  {
+    key: 'unallocatedCapital',
+    label: '未分配金额',
+    value: formatNumber(props.result?.unallocatedInvestment ?? 0, 4),
+  },
+  { key: 'gridProfitRate', label: '单格收益率', value: formatPercent(props.result?.gridProfitRate ?? 0, 4) },
+  { key: 'totalYieldRate', label: '区间振幅', value: formatPercent(props.result?.totalYieldRate ?? 0, 4) },
 ]);
 </script>
 
@@ -56,9 +86,9 @@ const summaryMetrics = computed(() => [
       <div class="detail-hero__top">
         <div class="side-badge">
           <component :is="sideIcon" :size="18" />
-          {{ sideLabel }}
+          <GridTipLabel :label="sideLabel" tip-key="direction" :side="activeInput?.side" />
         </div>
-        <van-tag round type="primary">现货网格</van-tag>
+        <van-tag round type="primary"><GridTipLabel label="现货网格" tip-key="strategyStatus" mode="spot" /></van-tag>
       </div>
       <h2>{{ result?.name || '现货网格' }}</h2>
     </section>
@@ -69,9 +99,15 @@ const summaryMetrics = computed(() => [
         <span>参数信息</span>
       </div>
       <div class="input-grid">
-        <div v-for="[label, value] in inputRows" :key="label" class="input-item">
-          <span>{{ label }}</span>
-          <strong>{{ value }}</strong>
+        <div v-for="item in inputRows" :key="item.key" class="input-item">
+          <GridTipLabel
+            :label="item.label"
+            :tip-key="item.key"
+            mode="spot"
+            :side="activeInput?.side"
+            :grid-mode="activeInput?.gridMode"
+          />
+          <strong>{{ item.value }}</strong>
         </div>
       </div>
     </section>
@@ -82,11 +118,15 @@ const summaryMetrics = computed(() => [
         <span>核心指标</span>
       </div>
       <div class="metric-grid">
-        <article v-for="[label, value] in summaryMetrics" :key="label" class="metric-card">
-          <span>{{ label }}</span>
-          <strong :class="{ negative: label === '浮动盈亏' && (result?.floatingProfitLoss ?? 0) < 0 }">{{
-            value
-          }}</strong>
+        <article v-for="item in summaryMetrics" :key="item.key" class="metric-card">
+          <GridTipLabel
+            :label="item.label"
+            :tip-key="item.key"
+            mode="spot"
+            :side="activeInput?.side"
+            :grid-mode="activeInput?.gridMode"
+          />
+          <strong :class="{ negative: item.danger }">{{ item.value }}</strong>
         </article>
       </div>
     </section>
@@ -98,10 +138,12 @@ const summaryMetrics = computed(() => [
       </div>
       <div class="position-list">
         <div class="position-row">
-          <span>已成交网格数</span><strong>{{ result?.filledGridCount ?? 0 }}</strong>
+          <GridTipLabel label="已成交网格数" tip-key="filledGridCount" />
+          <strong>{{ result?.filledGridCount ?? 0 }}</strong>
         </div>
         <div class="position-row">
-          <span>已投入金额</span><strong>{{ formatNumber(result?.filledInvestment ?? 0, 4) }}</strong>
+          <GridTipLabel label="已投入金额" tip-key="filledInvestment" mode="spot" />
+          <strong>{{ formatNumber(result?.filledInvestment ?? 0, 4) }}</strong>
         </div>
       </div>
     </section>
@@ -120,24 +162,24 @@ const summaryMetrics = computed(() => [
           <div class="grid-order-list">
             <div v-for="order in result?.gridOrders ?? []" :key="order.price" class="grid-order-row">
               <div>
-                <span>挂单价格</span>
+                <GridTipLabel label="挂单价格" tip-key="gridOrderPrice" />
                 <strong>{{ formatNumber(order.price, 4) }}</strong>
               </div>
               <div>
-                <span>投入金额</span>
+                <GridTipLabel label="投入金额" tip-key="gridOrderCapital" mode="spot" />
                 <strong>{{ formatNumber(order.investment, 4) }}</strong>
               </div>
               <div class="profit-cell">
-                <span>毛利润</span>
+                <GridTipLabel label="毛利润" tip-key="gridOrderGrossProfit" />
                 <strong>{{ formatProfitWithRate(order.grossProfitAmount ?? 0, order.grossProfitRate ?? 0) }}</strong>
               </div>
               <div class="profit-cell">
-                <span>净利润</span>
+                <GridTipLabel label="净利润" tip-key="gridOrderNetProfit" />
                 <strong>{{ formatProfitWithRate(order.netProfitAmount ?? 0, order.netProfitRate ?? 0) }}</strong>
               </div>
               <div class="grid-order-tags">
                 <van-tag :type="order.filled ? 'warning' : 'primary'" round>
-                  {{ order.filled ? '已成交' : '未成交' }}
+                  <GridTipLabel :label="order.filled ? '已成交' : '未成交'" tip-key="gridOrderStatus" />
                 </van-tag>
               </div>
             </div>

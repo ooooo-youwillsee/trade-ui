@@ -7,6 +7,7 @@ import {
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
 } from '../strategies/common/grid';
+import GridTipLabel from './GridTipLabel.vue';
 
 // form 来自 store，组件直接使用 v-model 修改草稿。
 const props = defineProps({
@@ -19,7 +20,6 @@ const props = defineProps({
 
 // 保存、复制、重置、删除等动作由页面统一处理，便于复用提示和路由逻辑。
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
-
 </script>
 
 <template>
@@ -56,8 +56,11 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
     </van-cell-group>
 
     <van-cell-group inset title="基础信息">
-      <van-field v-model="form.name" label="策略名称" placeholder="输入策略名称" />
-      <van-field label="方向">
+      <van-field v-model="form.name" placeholder="输入策略名称">
+        <template #label><GridTipLabel label="策略名称" tip-key="strategyName" /></template>
+      </van-field>
+      <van-field>
+        <template #label><GridTipLabel label="方向" tip-key="direction" :side="form.side" /></template>
         <template #input>
           <van-radio-group v-model="form.side" direction="horizontal">
             <van-radio :name="CONTRACT_SIDE_LONG">做多</van-radio>
@@ -65,7 +68,10 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
           </van-radio-group>
         </template>
       </van-field>
-      <van-field label="网格模式">
+      <van-field>
+        <template #label>
+          <GridTipLabel label="网格模式" tip-key="gridMode" :grid-mode="form.gridMode" />
+        </template>
         <template #input>
           <van-radio-group v-model="form.gridMode" direction="horizontal">
             <van-radio :name="GRID_MODE_ARITHMETIC">等差</van-radio>
@@ -73,25 +79,43 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
           </van-radio-group>
         </template>
       </van-field>
-      <van-cell center title="创建时立即建仓">
+      <van-cell center>
+        <template #title>
+          <GridTipLabel label="创建时立即建仓" tip-key="openOnCreate" :side="form.side" />
+        </template>
         <template #right-icon><van-switch v-model="form.openOnCreate" size="22px" /></template>
       </van-cell>
     </van-cell-group>
 
     <van-cell-group inset title="价格区间">
-      <van-field v-model.number="form.lowerPrice" label="下限价格" type="number" input-align="right" />
-      <van-field v-model.number="form.upperPrice" label="上限价格" type="number" input-align="right" />
-      <van-field v-model.number="form.entryPrice" label="入场价格" type="number" input-align="right" />
-      <van-field v-model.number="form.currentPrice" label="当前价格" type="number" input-align="right" />
+      <van-field v-model.number="form.lowerPrice" type="number" input-align="right">
+        <template #label><GridTipLabel label="下限价格" tip-key="lowerPrice" /></template>
+      </van-field>
+      <van-field v-model.number="form.upperPrice" type="number" input-align="right">
+        <template #label><GridTipLabel label="上限价格" tip-key="upperPrice" /></template>
+      </van-field>
+      <van-field v-model.number="form.entryPrice" type="number" input-align="right">
+        <template #label><GridTipLabel label="入场价格" tip-key="entryPrice" /></template>
+      </van-field>
+      <van-field v-model.number="form.currentPrice" type="number" input-align="right">
+        <template #label><GridTipLabel label="当前价格" tip-key="currentPrice" /></template>
+      </van-field>
     </van-cell-group>
 
     <van-cell-group inset title="资金与网格">
-      <van-field v-model.number="form.gridCount" label="网格数量" type="number" input-align="right" />
-      <van-field v-model.number="form.investment" label="投入金额" type="number" input-align="right" />
-      <van-field v-model.number="form.feeRate" label="单边手续费率" type="number" input-align="right">
+      <van-field v-model.number="form.gridCount" type="number" input-align="right">
+        <template #label><GridTipLabel label="网格数量" tip-key="gridCount" /></template>
+      </van-field>
+      <van-field v-model.number="form.investment" type="number" input-align="right">
+        <template #label><GridTipLabel label="投入金额" tip-key="investment" mode="spot" /></template>
+      </van-field>
+      <van-field v-model.number="form.feeRate" type="number" input-align="right">
+        <template #label><GridTipLabel label="单边手续费率" tip-key="feeRate" /></template>
         <template #button>%</template>
       </van-field>
-      <van-field v-model.number="form.minTradeQuantity" label="最小成交数量" type="number" input-align="right" />
+      <van-field v-model.number="form.minTradeQuantity" type="number" input-align="right">
+        <template #label><GridTipLabel label="最小成交数量" tip-key="minTradeQuantity" /></template>
+      </van-field>
     </van-cell-group>
 
     <div class="save-actions">
@@ -170,6 +194,9 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
   flex-wrap: wrap;
   gap: 8px;
   padding: 12px 16px 14px;
+}
+:deep(.van-field__label) {
+  width: 8.5em;
 }
 .save-actions {
   display: grid;

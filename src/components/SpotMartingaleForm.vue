@@ -8,6 +8,7 @@ import {
   MARTINGALE_SIDE_SHORT,
 } from '../strategies/common/martingale';
 import MartingaleFreeParametersEditor from './MartingaleFreeParametersEditor.vue';
+import MartingaleTipLabel from './MartingaleTipLabel.vue';
 
 const props = defineProps({
   calculation: { type: Object, required: true },
@@ -69,8 +70,11 @@ function updateFreeParameters(enabled) {
     </van-cell-group>
 
     <van-cell-group inset title="基础信息">
-      <van-field v-model="form.name" label="策略名称" placeholder="输入策略名称" />
-      <van-field label="方向">
+      <van-field v-model="form.name" placeholder="输入策略名称">
+        <template #label><MartingaleTipLabel label="策略名称" tip-key="strategyName" /></template>
+      </van-field>
+      <van-field>
+        <template #label><MartingaleTipLabel label="方向" tip-key="direction" :side="form.side" /></template>
         <template #input>
           <van-radio-group v-model="form.side" direction="horizontal">
             <van-radio :name="MARTINGALE_SIDE_LONG">做多</van-radio>
@@ -82,13 +86,20 @@ function updateFreeParameters(enabled) {
 
     <van-cell-group class="price-group" inset title="行情价格">
       <div class="field-grid price-grid">
-        <van-field v-model.number="form.entryPrice" label="入场价" type="number" input-align="right" />
-        <van-field v-model.number="form.currentPrice" label="当前价" type="number" input-align="right" />
+        <van-field v-model.number="form.entryPrice" type="number" input-align="right">
+          <template #label><MartingaleTipLabel label="入场价" tip-key="entryPrice" /></template>
+        </van-field>
+        <van-field v-model.number="form.currentPrice" type="number" input-align="right">
+          <template #label><MartingaleTipLabel label="当前价" tip-key="currentPrice" /></template>
+        </van-field>
       </div>
     </van-cell-group>
 
     <van-cell-group inset title="加仓参数">
-      <van-field label="执行平台">
+      <van-field>
+        <template #label>
+          <MartingaleTipLabel label="执行平台" tip-key="executionPlatform" :platform="form.executionPlatform" />
+        </template>
         <template #input>
           <van-radio-group
             :model-value="form.executionPlatform"
@@ -100,57 +111,60 @@ function updateFreeParameters(enabled) {
           </van-radio-group>
         </template>
       </van-field>
-      <van-field v-if="form.executionPlatform === MARTINGALE_PLATFORM_GATE" label="自由参数" input-align="right">
+      <van-field v-if="form.executionPlatform === MARTINGALE_PLATFORM_GATE" input-align="right">
+        <template #label><MartingaleTipLabel label="自由参数" tip-key="freeParameters" /></template>
         <template #input>
           <van-switch :model-value="form.useFreeParameters" size="22" @update:model-value="updateFreeParameters" />
         </template>
       </van-field>
       <div class="field-grid">
-        <van-field v-model.number="form.firstOrderAmount" label="首单金额" type="number" input-align="right" />
-        <van-field
-          v-if="!form.useFreeParameters"
-          v-model.number="form.multiplier"
-          label="加仓金额倍数"
-          type="number"
-          input-align="right"
-        />
+        <van-field v-model.number="form.firstOrderAmount" type="number" input-align="right">
+          <template #label>
+            <MartingaleTipLabel label="首单金额" tip-key="firstOrderAmount" mode="spot" />
+          </template>
+        </van-field>
+        <van-field v-if="!form.useFreeParameters" v-model.number="form.multiplier" type="number" input-align="right">
+          <template #label><MartingaleTipLabel label="加仓金额倍数" tip-key="amountMultiplier" /></template>
+        </van-field>
         <van-field
           v-if="!form.useFreeParameters"
           v-model.number="form.priceGapMultiplier"
-          label="加仓价差倍数"
-          type="number"
-          input-align="right"
-        />
-        <van-field
-          v-if="!form.useFreeParameters"
-          v-model.number="form.maxLayers"
-          label="最大层数"
-          type="number"
-          input-align="right"
-        />
-        <van-field
-          v-if="!form.useFreeParameters"
-          v-model.number="form.triggerPercent"
-          label="触发幅度"
           type="number"
           input-align="right"
         >
+          <template #label><MartingaleTipLabel label="加仓价差倍数" tip-key="priceGapMultiplier" /></template>
+        </van-field>
+        <van-field v-if="!form.useFreeParameters" v-model.number="form.maxLayers" type="number" input-align="right">
+          <template #label><MartingaleTipLabel label="最大层数" tip-key="maxLayers" /></template>
+        </van-field>
+        <van-field
+          v-if="!form.useFreeParameters"
+          v-model.number="form.triggerPercent"
+          type="number"
+          input-align="right"
+        >
+          <template #label><MartingaleTipLabel label="触发幅度" tip-key="triggerPercent" /></template>
           <template #button>%</template>
         </van-field>
       </div>
       <MartingaleFreeParametersEditor
         v-if="form.executionPlatform === MARTINGALE_PLATFORM_GATE && form.useFreeParameters"
         :layers="form.customLayers"
+        mode="spot"
         :side="form.side"
         @update:layers="form.customLayers = $event"
       />
     </van-cell-group>
 
     <van-cell-group inset title="止盈参数">
-      <van-field v-model.number="form.takeProfitPercent" label="止盈比例" type="number" input-align="right">
+      <van-field v-model.number="form.takeProfitPercent" type="number" input-align="right">
+        <template #label>
+          <MartingaleTipLabel label="止盈比例" tip-key="takeProfitPercent" :side="form.side" />
+        </template>
         <template #button>%</template>
       </van-field>
-      <van-field v-model.number="form.feeRate" label="单边手续费率" type="number" input-align="right">
+      <van-field v-model.number="form.feeRate" type="number" input-align="right">
+        <template #label><MartingaleTipLabel label="单边手续费率" tip-key="feeRate" /></template>
         <template #button>%</template>
       </van-field>
     </van-cell-group>
@@ -243,6 +257,9 @@ function updateFreeParameters(enabled) {
 .price-grid :deep(.van-field__label) {
   color: var(--trade-text);
   font-weight: var(--trade-weight-strong);
+}
+:deep(.van-field__label) {
+  width: 8.5em;
 }
 .save-actions {
   display: grid;

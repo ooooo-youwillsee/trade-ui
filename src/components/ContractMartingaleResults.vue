@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { BarChart3, Layers3, ShieldCheck, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
 import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
 import { formatNumber, formatPercent, formatPriceWithReferenceChange, formatProfitWithRate } from '../utils/formatters';
+import MartingaleTipLabel from './MartingaleTipLabel.vue';
 
 const props = defineProps({
   activeInput: { type: Object, default: null },
@@ -50,45 +51,90 @@ const inputRows = computed(() => {
   // 自由模式下隐藏不会参与计算的四个普通生成参数，避免用户误以为它们仍然生效。
   const freeParameters = props.activeInput?.executionPlatform === 'gate' && props.activeInput?.useFreeParameters;
   const rows = [
-    ['策略名称', props.activeInput?.name || '-'],
-    ['方向', sideLabel.value],
-    ['执行平台', props.activeInput?.executionPlatform === 'bitget' ? 'Bitget' : 'Gate'],
-    ['参数模式', freeParameters ? '自由参数' : '普通参数'],
-    ['入场价', formatNumber(props.activeInput?.entryPrice ?? 0, 4)],
-    ['当前价', formatNumber(props.activeInput?.currentPrice ?? 0, 4)],
-    ['首单保证金', formatNumber(props.activeInput?.firstOrderAmount ?? 0, 4)],
+    { key: 'strategyName', label: '策略名称', value: props.activeInput?.name || '-' },
+    { key: 'direction', label: '方向', value: sideLabel.value },
+    {
+      key: 'executionPlatform',
+      label: '执行平台',
+      value: props.activeInput?.executionPlatform === 'bitget' ? 'Bitget' : 'Gate',
+    },
+    { key: 'parameterMode', label: '参数模式', value: freeParameters ? '自由参数' : '普通参数' },
+    { key: 'entryPrice', label: '入场价', value: formatNumber(props.activeInput?.entryPrice ?? 0, 4) },
+    { key: 'currentPrice', label: '当前价', value: formatNumber(props.activeInput?.currentPrice ?? 0, 4) },
+    {
+      key: 'firstOrderAmount',
+      label: '首单保证金',
+      value: formatNumber(props.activeInput?.firstOrderAmount ?? 0, 4),
+    },
   ];
-  if (freeParameters) rows.push(['自由参数层数', String(props.activeInput?.customLayers?.length ?? 0)]);
+  if (freeParameters)
+    rows.push({
+      key: 'freeLayerCount',
+      label: '自由参数层数',
+      value: String(props.activeInput?.customLayers?.length ?? 0),
+    });
   else
     rows.push(
-      ['加仓金额倍数', formatNumber(props.activeInput?.multiplier ?? 0, 4)],
-      ['加仓价差倍数', formatNumber(props.activeInput?.priceGapMultiplier ?? 0, 4)],
-      ['最大层数', String(props.activeInput?.maxLayers ?? '-')],
-      ['触发幅度', formatPercent(props.activeInput?.triggerPercent ?? 0, 4)],
+      {
+        key: 'amountMultiplier',
+        label: '加仓金额倍数',
+        value: formatNumber(props.activeInput?.multiplier ?? 0, 4),
+      },
+      {
+        key: 'priceGapMultiplier',
+        label: '加仓价差倍数',
+        value: formatNumber(props.activeInput?.priceGapMultiplier ?? 0, 4),
+      },
+      { key: 'maxLayers', label: '最大层数', value: String(props.activeInput?.maxLayers ?? '-') },
+      {
+        key: 'triggerPercent',
+        label: '触发幅度',
+        value: formatPercent(props.activeInput?.triggerPercent ?? 0, 4),
+      },
     );
   rows.push(
-    ['止盈比例', formatPercent(props.activeInput?.takeProfitPercent ?? 0, 4)],
-    ['单边手续费率', formatPercent(props.activeInput?.feeRate ?? 0, 4)],
-    ['杠杆倍数', `${formatNumber(props.activeInput?.leverage ?? 0, 2)}x`],
-    ['追加保证金', formatNumber(props.activeInput?.additionalMargin ?? 0, 2)],
+    {
+      key: 'takeProfitPercent',
+      label: '止盈比例',
+      value: formatPercent(props.activeInput?.takeProfitPercent ?? 0, 4),
+    },
+    { key: 'feeRate', label: '单边手续费率', value: formatPercent(props.activeInput?.feeRate ?? 0, 4) },
+    { key: 'leverage', label: '杠杆倍数', value: `${formatNumber(props.activeInput?.leverage ?? 0, 2)}x` },
+    {
+      key: 'additionalMargin',
+      label: '追加保证金',
+      value: formatNumber(props.activeInput?.additionalMargin ?? 0, 2),
+    },
   );
   return rows;
 });
 const summaryMetrics = computed(() => [
-  ['入场价', formatNumber(props.result?.entryPrice ?? 0, 4), false],
-  ['当前价', currentPriceWithChange.value, false],
-  ['当前执行层', `${props.result?.currentExecutedLayers ?? 0}/${props.result?.layers.length ?? 0}`, false],
-  [
-    '浮动盈亏',
-    formatNumber(props.result?.currentFloatingProfitLoss ?? 0, 4),
-    (props.result?.currentFloatingProfitLoss ?? 0) < 0,
-  ],
-  [
-    '当前层级止盈毛利润',
-    currentLayerTakeProfitMetrics.value.grossValue,
-    currentLayerTakeProfitMetrics.value.grossDanger,
-  ],
-  ['当前层级止盈净利润', currentLayerTakeProfitMetrics.value.netValue, currentLayerTakeProfitMetrics.value.netDanger],
+  { key: 'entryPrice', label: '入场价', value: formatNumber(props.result?.entryPrice ?? 0, 4), danger: false },
+  { key: 'currentPrice', label: '当前价', value: currentPriceWithChange.value, danger: false },
+  {
+    key: 'executedLayers',
+    label: '当前执行层',
+    value: `${props.result?.currentExecutedLayers ?? 0}/${props.result?.layers.length ?? 0}`,
+    danger: false,
+  },
+  {
+    key: 'floatingProfitLoss',
+    label: '浮动盈亏',
+    value: formatNumber(props.result?.currentFloatingProfitLoss ?? 0, 4),
+    danger: (props.result?.currentFloatingProfitLoss ?? 0) < 0,
+  },
+  {
+    key: 'currentLayerGrossProfit',
+    label: '当前层级止盈毛利润',
+    value: currentLayerTakeProfitMetrics.value.grossValue,
+    danger: currentLayerTakeProfitMetrics.value.grossDanger,
+  },
+  {
+    key: 'currentLayerNetProfit',
+    label: '当前层级止盈净利润',
+    value: currentLayerTakeProfitMetrics.value.netValue,
+    danger: currentLayerTakeProfitMetrics.value.netDanger,
+  },
 ]);
 </script>
 
@@ -98,14 +144,16 @@ const summaryMetrics = computed(() => [
       <div class="detail-hero__top">
         <div class="side-badge">
           <component :is="sideIcon" :size="18" />
-          合约 · {{ sideLabel }}
+          <MartingaleTipLabel :label="`合约 · ${sideLabel}`" tip-key="direction" :side="activeInput?.side" />
         </div>
-        <van-tag :type="health.type" round>{{ health.label }}</van-tag>
+        <van-tag :type="health.type" round>
+          <MartingaleTipLabel :label="health.label" tip-key="strategyStatus" mode="futures" />
+        </van-tag>
       </div>
       <h2>{{ result?.name || '合约马丁' }}</h2>
       <div class="health-line">
         <ShieldCheck :size="18" />
-        <span>强平缓冲</span>
+        <MartingaleTipLabel label="强平缓冲" tip-key="liquidationBuffer" :side="activeInput?.side" />
         <strong>{{ formatPercent(result?.liquidationDistance ?? 0, 2) }}</strong>
       </div>
     </section>
@@ -116,9 +164,15 @@ const summaryMetrics = computed(() => [
         <span>参数信息</span>
       </div>
       <div class="input-grid">
-        <div v-for="[label, value] in inputRows" :key="label" class="input-item">
-          <span>{{ label }}</span>
-          <strong>{{ value }}</strong>
+        <div v-for="item in inputRows" :key="item.key" class="input-item">
+          <MartingaleTipLabel
+            :label="item.label"
+            :tip-key="item.key"
+            mode="futures"
+            :side="activeInput?.side"
+            :platform="activeInput?.executionPlatform"
+          />
+          <strong>{{ item.value }}</strong>
         </div>
       </div>
     </section>
@@ -129,9 +183,9 @@ const summaryMetrics = computed(() => [
         <span>核心指标</span>
       </div>
       <div class="metric-grid">
-        <article v-for="[label, value, danger] in summaryMetrics" :key="label" class="metric-card">
-          <span>{{ label }}</span>
-          <strong :class="{ negative: danger }">{{ value }}</strong>
+        <article v-for="item in summaryMetrics" :key="item.key" class="metric-card">
+          <MartingaleTipLabel :label="item.label" :tip-key="item.key" mode="futures" :side="activeInput?.side" />
+          <strong :class="{ negative: item.danger }">{{ item.value }}</strong>
         </article>
       </div>
     </section>
@@ -143,13 +197,15 @@ const summaryMetrics = computed(() => [
       </div>
       <div class="position-list">
         <div class="position-row">
-          <span>当前名义仓位</span><strong>{{ formatNumber(result?.currentNotional ?? 0, 4) }}</strong>
+          <MartingaleTipLabel label="当前名义仓位" tip-key="currentNotional" mode="futures" />
+          <strong>{{ formatNumber(result?.currentNotional ?? 0, 4) }}</strong>
         </div>
         <div class="position-row">
-          <span>当前保证金</span><strong>{{ formatNumber(result?.currentMargin ?? 0, 4) }}</strong>
+          <MartingaleTipLabel label="当前保证金" tip-key="currentMargin" mode="futures" />
+          <strong>{{ formatNumber(result?.currentMargin ?? 0, 4) }}</strong>
         </div>
         <div class="position-row">
-          <span>当前权益</span>
+          <MartingaleTipLabel label="当前权益" tip-key="currentEquity" mode="futures" />
           <strong :class="{ negative: (result?.currentEquity ?? 0) < 0 }">{{
             formatNumber(result?.currentEquity ?? 0, 4)
           }}</strong>
@@ -174,54 +230,65 @@ const summaryMetrics = computed(() => [
               :class="['layer-card', { planned: layer.layer > (result?.currentExecutedLayers ?? 0) }]"
             >
               <div class="layer-card__head">
-                <strong>第 {{ layer.layer }} 层</strong>
+                <strong><MartingaleTipLabel :label="`第 ${layer.layer} 层`" tip-key="layerNumber" /></strong>
                 <van-tag :type="layer.layer <= (result?.currentExecutedLayers ?? 0) ? 'primary' : 'default'" plain>
-                  {{ layer.layer <= (result?.currentExecutedLayers ?? 0) ? '已执行' : '计划中' }}
+                  <MartingaleTipLabel
+                    :label="layer.layer <= (result?.currentExecutedLayers ?? 0) ? '已执行' : '计划中'"
+                    tip-key="layerStatus"
+                  />
                 </van-tag>
               </div>
               <div class="layer-grid">
                 <div class="layer-metric">
-                  <span>触发价</span>
+                  <MartingaleTipLabel
+                    label="触发价"
+                    tip-key="triggerPrice"
+                    :platform="activeInput?.executionPlatform"
+                  />
                   <b>{{ formatPriceWithReferenceChange(layer.triggerPrice, result.entryPrice, 4, 2) }}</b>
                 </div>
                 <div class="layer-metric">
-                  <span>触发时浮动盈亏</span>
+                  <MartingaleTipLabel
+                    label="触发时浮动盈亏"
+                    tip-key="triggerFloatingProfitLoss"
+                    :side="activeInput?.side"
+                  />
                   <b :class="{ negative: layer.triggerFloatingProfitLoss < 0 }">{{
                     formatProfitWithRate(layer.triggerFloatingProfitLoss ?? 0, layer.triggerFloatingProfitRate ?? 0)
                   }}</b>
                 </div>
                 <div class="layer-metric">
-                  <span>本层保证金</span>
+                  <MartingaleTipLabel label="本层保证金" tip-key="layerOrderAmount" mode="futures" />
                   <b>{{ formatNumber(layer.orderAmount, 4) }}</b>
                 </div>
                 <div class="layer-metric">
-                  <span>本层名义仓位</span>
+                  <MartingaleTipLabel label="本层名义仓位" tip-key="layerPosition" mode="futures" />
                   <b>{{ formatNumber(layer.notional, 4) }}</b>
                 </div>
                 <div class="layer-metric">
-                  <span>累计保证金</span>
+                  <MartingaleTipLabel label="累计保证金" tip-key="cumulativeCapital" mode="futures" />
                   <b>{{ formatNumber(layer.capitalUsed, 4) }}</b>
                 </div>
                 <div class="layer-metric">
-                  <span>累计名义仓位</span>
+                  <MartingaleTipLabel label="累计名义仓位" tip-key="cumulativePosition" mode="futures" />
                   <b>{{ formatNumber(layer.cumulativeNotional, 4) }}</b>
                 </div>
                 <div class="layer-metric">
-                  <span>持仓均价</span>
+                  <MartingaleTipLabel label="持仓均价" tip-key="layerAverageEntryPrice" />
                   <b>{{ formatPriceWithReferenceChange(layer.averageEntryPrice, layer.triggerPrice, 4, 2) }}</b>
                 </div>
                 <div class="layer-metric">
-                  <span>止盈价</span>
+                  <MartingaleTipLabel label="止盈价" tip-key="layerTakeProfitPrice" :side="activeInput?.side" />
                   <b>{{ formatPriceWithReferenceChange(layer.takeProfitPrice, layer.triggerPrice, 4, 2) }}</b>
                 </div>
                 <div class="layer-metric layer-metric--profit">
-                  <span>止盈毛利润</span>
+                  <MartingaleTipLabel label="止盈毛利润" tip-key="layerGrossProfit" />
                   <b>{{
                     formatProfitWithRate(layer.takeProfitGrossProfitAmount ?? 0, layer.takeProfitGrossProfitRate ?? 0)
                   }}</b>
                 </div>
                 <div class="layer-metric layer-metric--profit">
-                  <span>止盈净利润</span>
+                  <MartingaleTipLabel label="止盈净利润" tip-key="layerNetProfit" />
                   <b :class="{ negative: layer.takeProfitNetProfitAmount < 0 }">{{
                     formatProfitWithRate(layer.takeProfitNetProfitAmount ?? 0, layer.takeProfitNetProfitRate ?? 0)
                   }}</b>

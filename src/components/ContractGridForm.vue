@@ -8,6 +8,7 @@ import {
   GRID_MODE_ARITHMETIC,
   GRID_MODE_GEOMETRIC,
 } from '../strategies/common/grid';
+import GridTipLabel from './GridTipLabel.vue';
 
 // 父页面传入响应式 form 和计算状态，表单只负责展示和触发事件。
 const props = defineProps({
@@ -35,7 +36,6 @@ const props = defineProps({
 
 // 事件命名保持业务动作语义，父页面根据当前路由决定具体跳转和提示。
 defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strategy', 'set-preset']);
-
 </script>
 
 <template>
@@ -74,8 +74,11 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
     </van-cell-group>
 
     <van-cell-group inset title="基础信息">
-      <van-field v-model="form.name" label="策略名称" placeholder="输入策略名称" />
-      <van-field label="方向">
+      <van-field v-model="form.name" placeholder="输入策略名称">
+        <template #label><GridTipLabel label="策略名称" tip-key="strategyName" /></template>
+      </van-field>
+      <van-field>
+        <template #label><GridTipLabel label="方向" tip-key="direction" :side="form.side" /></template>
         <template #input>
           <van-radio-group v-model="form.side" direction="horizontal">
             <van-radio :name="CONTRACT_SIDE_LONG">做多</van-radio>
@@ -84,7 +87,10 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
           </van-radio-group>
         </template>
       </van-field>
-      <van-field label="网格模式">
+      <van-field>
+        <template #label>
+          <GridTipLabel label="网格模式" tip-key="gridMode" :grid-mode="form.gridMode" />
+        </template>
         <template #input>
           <van-radio-group v-model="form.gridMode" direction="horizontal">
             <van-radio :name="GRID_MODE_ARITHMETIC">等差</van-radio>
@@ -92,7 +98,10 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
           </van-radio-group>
         </template>
       </van-field>
-      <van-cell center title="创建时立即建仓">
+      <van-cell center>
+        <template #title>
+          <GridTipLabel label="创建时立即建仓" tip-key="openOnCreate" :side="form.side" />
+        </template>
         <template #right-icon>
           <van-switch v-model="form.openOnCreate" size="22px" />
         </template>
@@ -100,21 +109,40 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
     </van-cell-group>
 
     <van-cell-group inset title="价格区间">
-      <van-field v-model.number="form.lowerPrice" label="下限价格" type="number" input-align="right" />
-      <van-field v-model.number="form.upperPrice" label="上限价格" type="number" input-align="right" />
-      <van-field v-model.number="form.entryPrice" label="入场价格" type="number" input-align="right" />
-      <van-field v-model.number="form.currentPrice" label="当前价格" type="number" input-align="right" />
+      <van-field v-model.number="form.lowerPrice" type="number" input-align="right">
+        <template #label><GridTipLabel label="下限价格" tip-key="lowerPrice" /></template>
+      </van-field>
+      <van-field v-model.number="form.upperPrice" type="number" input-align="right">
+        <template #label><GridTipLabel label="上限价格" tip-key="upperPrice" /></template>
+      </van-field>
+      <van-field v-model.number="form.entryPrice" type="number" input-align="right">
+        <template #label><GridTipLabel label="入场价格" tip-key="entryPrice" /></template>
+      </van-field>
+      <van-field v-model.number="form.currentPrice" type="number" input-align="right">
+        <template #label><GridTipLabel label="当前价格" tip-key="currentPrice" /></template>
+      </van-field>
     </van-cell-group>
 
     <van-cell-group inset title="资金与网格">
-      <van-field v-model.number="form.gridCount" label="网格数量" type="number" input-align="right" />
-      <van-field v-model.number="form.leverage" label="杠杆倍数" type="number" input-align="right" />
-      <van-field v-model.number="form.investment" label="初始保证金" type="number" input-align="right" />
-      <van-field v-model.number="form.additionalInvestment" label="追加保证金" type="number" input-align="right" />
-      <van-field v-model.number="form.feeRate" label="单边手续费率" type="number" input-align="right">
+      <van-field v-model.number="form.gridCount" type="number" input-align="right">
+        <template #label><GridTipLabel label="网格数量" tip-key="gridCount" /></template>
+      </van-field>
+      <van-field v-model.number="form.leverage" type="number" input-align="right">
+        <template #label><GridTipLabel label="杠杆倍数" tip-key="leverage" /></template>
+      </van-field>
+      <van-field v-model.number="form.investment" type="number" input-align="right">
+        <template #label><GridTipLabel label="初始保证金" tip-key="investment" mode="futures" /></template>
+      </van-field>
+      <van-field v-model.number="form.additionalInvestment" type="number" input-align="right">
+        <template #label><GridTipLabel label="追加保证金" tip-key="additionalInvestment" /></template>
+      </van-field>
+      <van-field v-model.number="form.feeRate" type="number" input-align="right">
+        <template #label><GridTipLabel label="单边手续费率" tip-key="feeRate" /></template>
         <template #button>%</template>
       </van-field>
-      <van-field v-model.number="form.minTradeQuantity" label="最小成交数量" type="number" input-align="right" />
+      <van-field v-model.number="form.minTradeQuantity" type="number" input-align="right">
+        <template #label><GridTipLabel label="最小成交数量" tip-key="minTradeQuantity" /></template>
+      </van-field>
     </van-cell-group>
 
     <div class="save-actions">
@@ -203,6 +231,10 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
   padding: 12px 16px 14px;
 }
 
+:deep(.van-field__label) {
+  width: 8.5em;
+}
+
 .save-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -213,5 +245,4 @@ defineEmits(['delete-strategy', 'duplicate-strategy', 'reset-form', 'save-strate
     grid-column: 1 / -1;
   }
 }
-
 </style>

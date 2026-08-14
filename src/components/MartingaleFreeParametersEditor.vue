@@ -2,9 +2,11 @@
 import { computed } from 'vue';
 import { Minus, Plus } from '@lucide/vue';
 import { MARTINGALE_MAX_CUSTOM_LAYERS, MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
+import MartingaleTipLabel from './MartingaleTipLabel.vue';
 
 const props = defineProps({
   layers: { type: Array, required: true },
+  mode: { type: String, required: true },
   side: { type: String, required: true },
 });
 
@@ -54,9 +56,9 @@ function removeLayer() {
 <template>
   <div class="free-parameters">
     <div class="free-parameters__head">
-      <span>#</span>
-      <span>{{ gapLabel }}</span>
-      <span>{{ sharesLabel }}</span>
+      <MartingaleTipLabel label="#" tip-key="customLayerNumber" />
+      <MartingaleTipLabel :label="gapLabel" tip-key="customGapPercent" :side="side" />
+      <MartingaleTipLabel :label="sharesLabel" tip-key="customAmountShares" :mode="mode" :side="side" />
     </div>
 
     <div v-for="(layer, index) in layers" :key="index" class="free-parameters__row">
@@ -127,7 +129,7 @@ function removeLayer() {
 .free-parameters__head,
 .free-parameters__row {
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   align-items: center;
 }
@@ -203,7 +205,7 @@ function removeLayer() {
   }
   .free-parameters__head,
   .free-parameters__row {
-    grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: 38px minmax(0, 1fr) minmax(0, 1fr);
     gap: 6px;
   }
   .step-control button {
