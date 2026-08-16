@@ -20,6 +20,11 @@ describe('martingale tip catalog', () => {
     expect(getMartingaleTip('customGapPercent', { side: 'short' })).toContain('上涨');
   });
 
+  it('documents six-decimal support for price inputs', () => {
+    expect(getMartingaleTip('entryPrice')).toContain('6 位小数');
+    expect(getMartingaleTip('currentPrice')).toContain('6 位小数');
+  });
+
   it('returns an empty string for an unknown semantic key', () => {
     expect(getMartingaleTip('unknown-key')).toBe('');
   });

@@ -13,6 +13,11 @@ describe('limitDecimalPlaces', () => {
     expect(limitDecimalPlaces('-12.34567', 4)).toBe('-12.3456');
   });
 
+  it('supports price inputs with up to six decimal places', () => {
+    expect(limitDecimalPlaces('0.123456', 6)).toBe('0.123456');
+    expect(limitDecimalPlaces('0.1234567', 6)).toBe('0.123456');
+  });
+
   it('normalizes nullish and numeric values to strings', () => {
     expect(limitDecimalPlaces(null, 4)).toBe('');
     expect(limitDecimalPlaces(1.2345, 4)).toBe('1.2345');

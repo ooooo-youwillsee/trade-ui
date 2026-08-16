@@ -8,8 +8,9 @@ const TIP_DEFINITIONS = {
   strategyName: () => '用于识别和保存这组马丁配置，不参与任何价格、仓位或盈亏计算。',
   direction: ({ side }) =>
     `当前为${directionName(side)}方向。做多在价格下跌时加仓、上涨时盈利；做空在价格上涨时加仓、下跌时盈利。`,
-  entryPrice: () => '首单的计划成交价，也是第一层触发价；第一层始终按该价格视为已执行。',
-  currentPrice: () => '市场当前价格，仅用于判断已执行层数、实时浮动盈亏、当前权益和风险距离，不改变计划触发价。',
+  entryPrice: () => '首单的计划成交价，也是第一层触发价；支持最多 6 位小数，第一层始终按该价格视为已执行。',
+  currentPrice: () =>
+    '市场当前价格，支持最多 6 位小数；仅用于判断已执行层数、实时浮动盈亏、当前权益和风险距离，不改变计划触发价。',
   executionPlatform: ({ platform }) =>
     `当前选择 ${platformName(platform)}。Gate 普通模式按上一层触发价逐层计算价差；Bitget 按入场价计算每段价差并累计。`,
   parameterMode: () =>

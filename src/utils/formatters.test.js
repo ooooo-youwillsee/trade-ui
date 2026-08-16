@@ -47,6 +47,10 @@ describe('formatPriceWithReferenceChange', () => {
     expect(formatPriceWithReferenceChange(124.0482, 118.8, 4, 2)).toBe('124.0482 (+4.42%)');
   });
 
+  it('supports martingale prices with six decimal places', () => {
+    expect(formatPriceWithReferenceChange(0.123456, 0.12, 6, 2)).toBe('0.123456 (+2.88%)');
+  });
+
   it('omits the change when reference price is invalid', () => {
     expect(formatPriceWithReferenceChange(1000, 0, 4, 2)).toBe('1,000.00');
     expect(formatPriceWithReferenceChange(1000, Number.NaN, 4, 2)).toBe('1,000.00');

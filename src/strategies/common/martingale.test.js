@@ -6,6 +6,7 @@ import {
   MARTINGALE_MODE_SPOT,
   MARTINGALE_PLATFORM_BITGET,
   MARTINGALE_PLATFORM_GATE,
+  MARTINGALE_PRICE_DECIMAL_PLACES,
   MARTINGALE_SIDE_LONG,
   MARTINGALE_SIDE_SHORT,
   normalizeMartingaleInput,
@@ -65,6 +66,17 @@ describe('calculateMartingale', () => {
       feeRate: 0.02,
       leverage: 1,
     });
+  });
+
+  it('preserves six-decimal price inputs and results without strategy-level rounding', () => {
+    const entryPrice = 0.123456;
+    const currentPrice = 0.123455;
+    const result = calculateMartingale({ ...spotInput, entryPrice, currentPrice, maxLayers: 1 });
+
+    expect(MARTINGALE_PRICE_DECIMAL_PLACES).toBe(6);
+    expect(result.entryPrice).toBe(entryPrice);
+    expect(result.currentPrice).toBe(currentPrice);
+    expect(result.layers[0].triggerPrice).toBe(entryPrice);
   });
 
   it('builds every layer from entry price independently of current price', () => {

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { BarChart3, Layers3, SlidersHorizontal, TrendingDown, TrendingUp, Wallet } from '@lucide/vue';
-import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
+import { MARTINGALE_PRICE_DECIMAL_PLACES, MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
 import { formatNumber, formatPercent, formatPriceWithReferenceChange, formatProfitWithRate } from '../utils/formatters';
 import MartingaleTipLabel from './MartingaleTipLabel.vue';
 
@@ -46,8 +46,16 @@ const inputRows = computed(() => {
       value: props.activeInput?.executionPlatform === 'bitget' ? 'Bitget' : 'Gate',
     },
     { key: 'parameterMode', label: '参数模式', value: freeParameters ? '自由参数' : '普通参数' },
-    { key: 'entryPrice', label: '入场价', value: formatNumber(props.activeInput?.entryPrice ?? 0, 4) },
-    { key: 'currentPrice', label: '当前价', value: formatNumber(props.activeInput?.currentPrice ?? 0, 4) },
+    {
+      key: 'entryPrice',
+      label: '入场价',
+      value: formatNumber(props.activeInput?.entryPrice ?? 0, MARTINGALE_PRICE_DECIMAL_PLACES),
+    },
+    {
+      key: 'currentPrice',
+      label: '当前价',
+      value: formatNumber(props.activeInput?.currentPrice ?? 0, MARTINGALE_PRICE_DECIMAL_PLACES),
+    },
     {
       key: 'firstOrderAmount',
       label: '首单金额',
@@ -90,8 +98,18 @@ const inputRows = computed(() => {
   return rows;
 });
 const summaryMetrics = computed(() => [
-  { key: 'entryPrice', label: '入场价', value: formatNumber(props.result?.entryPrice ?? 0, 4), danger: false },
-  { key: 'currentPrice', label: '当前价', value: formatNumber(props.result?.currentPrice ?? 0, 4), danger: false },
+  {
+    key: 'entryPrice',
+    label: '入场价',
+    value: formatNumber(props.result?.entryPrice ?? 0, MARTINGALE_PRICE_DECIMAL_PLACES),
+    danger: false,
+  },
+  {
+    key: 'currentPrice',
+    label: '当前价',
+    value: formatNumber(props.result?.currentPrice ?? 0, MARTINGALE_PRICE_DECIMAL_PLACES),
+    danger: false,
+  },
   {
     key: 'executedLayers',
     label: '当前执行层',
@@ -119,7 +137,7 @@ const summaryMetrics = computed(() => [
   {
     key: 'currentTakeProfitPrice',
     label: '当前止盈价',
-    value: formatNumber(props.result?.currentTakeProfitPrice ?? 0, 4),
+    value: formatNumber(props.result?.currentTakeProfitPrice ?? 0, MARTINGALE_PRICE_DECIMAL_PLACES),
     danger: false,
   },
 ]);
@@ -184,7 +202,7 @@ const summaryMetrics = computed(() => [
         </div>
         <div class="position-row">
           <MartingaleTipLabel label="当前持仓均价" tip-key="currentAverageEntryPrice" mode="spot" />
-          <strong>{{ formatNumber(result?.currentAverageEntryPrice ?? 0, 4) }}</strong>
+          <strong>{{ formatNumber(result?.currentAverageEntryPrice ?? 0, MARTINGALE_PRICE_DECIMAL_PLACES) }}</strong>
         </div>
         <div class="position-row">
           <MartingaleTipLabel label="当前止盈毛利润" tip-key="currentGrossProfit" mode="spot" />
@@ -251,7 +269,14 @@ const summaryMetrics = computed(() => [
                     tip-key="triggerPrice"
                     :platform="activeInput?.executionPlatform"
                   />
-                  <b>{{ formatPriceWithReferenceChange(layer.triggerPrice, result.entryPrice, 4, 2) }}</b>
+                  <b>{{
+                    formatPriceWithReferenceChange(
+                      layer.triggerPrice,
+                      result.entryPrice,
+                      MARTINGALE_PRICE_DECIMAL_PLACES,
+                      2,
+                    )
+                  }}</b>
                 </div>
                 <div class="layer-metric">
                   <MartingaleTipLabel
@@ -281,11 +306,25 @@ const summaryMetrics = computed(() => [
                 </div>
                 <div class="layer-metric">
                   <MartingaleTipLabel label="持仓均价" tip-key="layerAverageEntryPrice" />
-                  <b>{{ formatPriceWithReferenceChange(layer.averageEntryPrice, layer.triggerPrice, 4, 2) }}</b>
+                  <b>{{
+                    formatPriceWithReferenceChange(
+                      layer.averageEntryPrice,
+                      layer.triggerPrice,
+                      MARTINGALE_PRICE_DECIMAL_PLACES,
+                      2,
+                    )
+                  }}</b>
                 </div>
                 <div class="layer-metric">
                   <MartingaleTipLabel label="止盈价" tip-key="layerTakeProfitPrice" :side="activeInput?.side" />
-                  <b>{{ formatPriceWithReferenceChange(layer.takeProfitPrice, layer.triggerPrice, 4, 2) }}</b>
+                  <b>{{
+                    formatPriceWithReferenceChange(
+                      layer.takeProfitPrice,
+                      layer.triggerPrice,
+                      MARTINGALE_PRICE_DECIMAL_PLACES,
+                      2,
+                    )
+                  }}</b>
                 </div>
                 <div class="layer-metric layer-metric--profit">
                   <MartingaleTipLabel label="止盈毛利润" tip-key="layerGrossProfit" />

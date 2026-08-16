@@ -2,6 +2,7 @@
 import { Copy, RotateCcw, Save, Trash2 } from '@lucide/vue';
 import {
   createInitialCustomLayers,
+  MARTINGALE_PRICE_DECIMAL_PLACES,
   MARTINGALE_PLATFORM_BITGET,
   MARTINGALE_PLATFORM_GATE,
   MARTINGALE_SIDE_LONG,
@@ -12,6 +13,7 @@ import MartingaleFreeParametersEditor from './MartingaleFreeParametersEditor.vue
 import MartingaleTipLabel from './MartingaleTipLabel.vue';
 
 const formatFirstOrderAmount = (value) => limitDecimalPlaces(value, 4);
+const formatPrice = (value) => limitDecimalPlaces(value, MARTINGALE_PRICE_DECIMAL_PLACES);
 
 const props = defineProps({
   calculation: { type: Object, required: true },
@@ -88,10 +90,22 @@ function updateFreeParameters(enabled) {
     </van-cell-group>
 
     <van-cell-group class="price-group" inset title="行情价格">
-      <van-field v-model.number="form.entryPrice" type="number" input-align="right">
+      <van-field
+        v-model.number="form.entryPrice"
+        type="number"
+        :formatter="formatPrice"
+        format-trigger="onChange"
+        input-align="right"
+      >
         <template #label><MartingaleTipLabel label="入场价" tip-key="entryPrice" /></template>
       </van-field>
-      <van-field v-model.number="form.currentPrice" type="number" input-align="right">
+      <van-field
+        v-model.number="form.currentPrice"
+        type="number"
+        :formatter="formatPrice"
+        format-trigger="onChange"
+        input-align="right"
+      >
         <template #label><MartingaleTipLabel label="当前价" tip-key="currentPrice" /></template>
       </van-field>
     </van-cell-group>

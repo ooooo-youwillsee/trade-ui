@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { showConfirmDialog } from 'vant';
 import { ArrowLeftRight, Boxes, Flame, Trash2, TrendingDown, TrendingUp } from '@lucide/vue';
 import { CONTRACT_SIDE_LONG, CONTRACT_SIDE_NEUTRAL } from '../strategies/common/grid';
-import { MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
+import { MARTINGALE_PRICE_DECIMAL_PLACES, MARTINGALE_SIDE_LONG } from '../strategies/common/martingale';
 import { useContractMartingaleStrategies } from '../composables/useContractMartingaleStrategies';
 import { useContractGridStrategies } from '../composables/useContractGridStrategies';
 import { useContractHedgeGridStrategies } from '../composables/useContractHedgeGridStrategies';
@@ -240,7 +240,7 @@ function martingaleCard(item) {
             isContract.value ? '强平价' : '止盈价',
             formatNumber(
               isContract.value ? calculation.result.liquidationPrice : calculation.result.currentTakeProfitPrice,
-              2,
+              MARTINGALE_PRICE_DECIMAL_PLACES,
             ),
           ],
         ],

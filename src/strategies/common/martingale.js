@@ -13,6 +13,8 @@ export const MARTINGALE_PLATFORM_GATE = 'gate';
 export const MARTINGALE_PLATFORM_BITGET = 'bitget';
 // 自由参数逐层渲染输入控件，限制层数可以避免异常配置造成大量 DOM 和计算对象。
 export const MARTINGALE_MAX_CUSTOM_LAYERS = 99;
+// 马丁行情输入与所有价格类结果统一支持最多 6 位小数。
+export const MARTINGALE_PRICE_DECIMAL_PLACES = 6;
 
 /**
  * 将表单、本地存储或外部调用传入的数据转换为统一结构。
